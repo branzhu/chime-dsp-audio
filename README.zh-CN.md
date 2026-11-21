@@ -49,12 +49,12 @@ idf.py --preview -C software build
 | [`software/`](software/) | ESP-IDF 固件、组件及主机测试 |
 | [`dsp/`](dsp/) | SigmaStudio 工程、生成数据、ESP32 参数绑定 |
 | [`hardware/`](hardware/) | EasyEDA PCB 导出文件 `audio-dsp.epro2`，**不是** Gerber 制造包 |
-| [`mechanical/`](mechanical/) | STEP / 3MF 箱体模型；未公开 Creo 原生文件 |
+| [`mechanical/`](mechanical/) | STEP / 3MF 箱体模型 |
 | [`scripts/`](scripts/) | 构建、DSP 同步、测试及发布脚本 |
 | [`tools/wireshark/`](tools/wireshark/) | SigmaDSP 协议分析工具 |
 | [`docs/`](docs/README.zh-CN.md) | 技术文档 |
 
-公开仓库是从开发仓库整理出来的快照，不包含完整开发历史。要加工 PCB 或箱体的话，先看 [PCB 说明](hardware/README.md)和[箱体文件说明](mechanical/README.md)。
+板卡文件与加工前检查见 [PCB 说明](hardware/README.zh-CN.md)。箱体文件位于 [`mechanical/`](mechanical/)，使用前请检查单位、尺寸、公差和打印参数。
 
 ## 文档
 

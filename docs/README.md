@@ -11,4 +11,4 @@ Start with the build guide before compiling or flashing, and read the safety not
 | Safety and known limitations | [Safety](safety.md) | [安全与已知限制](safety.zh-CN.md) |
 | Licenses and third-party materials | [Licensing](licenses.md) | [许可与第三方材料](licenses.zh-CN.md) |
 
-For board design files and enclosure exchange models, see the [PCB notes](../hardware/README.md) and [enclosure notes](../mechanical/README.md). Those directory notes are currently in Simplified Chinese. The root [project overview](../README.md) is available in English and Chinese.
+For board design files, see the [PCB notes](../hardware/README.md), also available in Simplified Chinese. Enclosure exchange models are in [`mechanical/`](../mechanical/). The root [project overview](../README.md) is available in English and Chinese.

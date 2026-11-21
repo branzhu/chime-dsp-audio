@@ -87,10 +87,34 @@ class PublicExportTests(unittest.TestCase):
                     if path.is_file():
                         self.assertTrue(export.is_public(path.relative_to(ROOT).as_posix()))
 
+    def test_hardware_is_bilingual_and_mechanical_exports_are_models_only(self):
+        for name, target in [('hardware/README.md', 'README.zh-CN.md'),
+                             ('hardware/README.zh-CN.md', 'README.md')]:
+            text = (ROOT / name).read_text(encoding='utf-8')
+            self.assertIn(f']({target})', text.splitlines()[0])
+            self.assertTrue(export.is_public(name))
+            self.assertIn('CERN-OHL-P-2.0', text)
+        for name in ['README.md', 'README.zh-CN.md', 'docs/README.md',
+                     'docs/README.zh-CN.md', 'hardware/README.md', 'hardware/README.zh-CN.md']:
+            text = (ROOT / name).read_text(encoding='utf-8')
+            self.assertNotIn('mechanical/README', text)
+            self.assertNotIn('Creo', text)
+            for target in re.findall(r'\[[^\]]*\]\(([^)\s]+)\)', text):
+                if re.match(r'^[a-zA-Z]+:', target) or target.startswith('#'):
+                    continue
+                path = ((ROOT / name).parent / target.split('#')[0]).resolve()
+                with self.subTest(document=name, target=target):
+                    self.assertTrue(path.exists())
+        blobs = export.load_snapshot(ROOT, export.inventory(ROOT))
+        self.assertEqual({name for name in blobs if name.startswith('mechanical/')},
+                         {f'mechanical/{part}.{extension}'
+                          for part in ('front', 'back') for extension in ('stp', '3mf')})
+
     def test_private_materials_are_not_publishable(self):
         for name in ['.git/config', 'mechanical/front.prt.11', 'mechanical/a.asm.2',
                      'mechanical/a.drw', 'mechanical/nested/private.stp',
-                     'docs/PRD.md', 'docs/publishing.md', 'docs/publishing.zh-CN.md',
+                     'docs/PRD.md', 'mechanical/README.md', 'mechanical/README.zh-CN.md',
+                     'docs/publishing.md', 'docs/publishing.zh-CN.md',
                      'LICENSES/private-contract.pdf', 'LICENSES/unreviewed.txt',
                      'docs/internal/software-development-history.md',
                      'docs/validation/trace.json', 'docs/third-party/adau145x-adi.pdf',

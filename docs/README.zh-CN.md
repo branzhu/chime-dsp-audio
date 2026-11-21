@@ -11,4 +11,4 @@
 | 安全与已知限制 | [安全说明](safety.zh-CN.md) | [Safety](safety.md) |
 | 许可与第三方材料 | [许可说明](licenses.zh-CN.md) | [Licensing](licenses.md) |
 
-板卡设计和外壳交换模型分别见 [PCB 说明](../hardware/README.md) 和 [外壳说明](../mechanical/README.md)。项目概览见根目录的 [中文 README](../README.zh-CN.md)。
+板卡设计见 [PCB 说明](../hardware/README.zh-CN.md)，外壳交换模型位于 [`mechanical/`](../mechanical/)。项目概览见根目录的 [中文 README](../README.zh-CN.md)。

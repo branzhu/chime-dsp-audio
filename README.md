@@ -49,12 +49,12 @@ I haven't packaged a one-click flashing procedure. In particular, don't mix a ne
 | [`software/`](software/) | ESP-IDF firmware, components, host tests |
 | [`dsp/`](dsp/) | SigmaStudio project, generated data, ESP32 parameter bindings |
 | [`hardware/`](hardware/) | EasyEDA PCB export (`audio-dsp.epro2`); **not** a Gerber package |
-| [`mechanical/`](mechanical/) | STEP / 3MF enclosure models; native Creo files are not published |
+| [`mechanical/`](mechanical/) | STEP / 3MF enclosure models |
 | [`scripts/`](scripts/) | Build, DSP sync, testing, and release helpers |
 | [`tools/wireshark/`](tools/wireshark/) | SigmaDSP protocol analysis tools |
 | [`docs/`](docs/README.md) | User guides in English and Simplified Chinese |
 
-The public repository is an exported snapshot, not the complete development history. For manufacturing details, start with the [PCB notes](hardware/README.md) and [enclosure notes](mechanical/README.md).
+See the [PCB notes](hardware/README.md) for board files and pre-manufacturing checks. Enclosure files are in [`mechanical/`](mechanical/); check units, dimensions, tolerances, and print settings before use.
 
 ## Notes and documentation
 
