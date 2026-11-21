@@ -42,6 +42,22 @@ class PublicExportTests(unittest.TestCase):
             export.load_snapshot(ROOT, [name for name in export.inventory(ROOT)
                                         if name != 'README.zh-CN.md'])
 
+    def test_upstream_projects_are_credited_in_both_readmes(self):
+        reference = json.loads((ROOT / 'software/components/chime_codec_reference/UPSTREAM.json').read_text())
+        freeaptx = json.loads((ROOT / 'software/components/chime_freeaptx/UPSTREAM.json').read_text())
+        lhdc = json.loads((ROOT / 'software/components/chime_codec_reference/vendor/native_bt/codecs/lhdcv5/source_snapshot/SOURCE.json').read_text())
+        sources = [(reference['repository'], reference['commit']),
+                   (freeaptx['repository'], freeaptx['commit']),
+                   (lhdc['upstream'], lhdc['comparison_revision'])]
+        for name in ['README.md', 'README.zh-CN.md']:
+            text = (ROOT / name).read_text(encoding='utf-8')
+            for repository, revision in sources:
+                with self.subTest(readme=name, source=repository, revision=revision):
+                    self.assertIn('](' + repository + ')', text)
+                    self.assertIn(repository + '/tree/' + revision, text)
+            self.assertIn('WillyBilly06', text)
+            self.assertIn('THIRD_PARTY_NOTICES.md', text)
+
     def test_private_materials_are_not_publishable(self):
         for name in ['.git/config', 'mechanical/front.prt.11', 'mechanical/a.asm.2',
                      'mechanical/a.drw', 'mechanical/nested/private.stp',

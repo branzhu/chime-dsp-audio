@@ -81,6 +81,18 @@ The linked guides below are currently in Simplified Chinese. The [Chinese README
 - [Licenses and third-party materials](docs/licenses.md)
 - [Public release workflow](docs/publishing.md)
 
+## Upstream projects and acknowledgements
+
+Chime builds on work shared by **WillyBilly06** and other upstream contributors:
+
+- **[ESP32-A2DP-SINK-WITH-CODECS-UPDATED](https://github.com/WillyBilly06/ESP32-A2DP-SINK-WITH-CODECS-UPDATED)**: the source of the selected LDAC decoder implementation, LDAC / LHDC V5 adapter code, and codec lifecycle helpers integrated into Chime. These imports are pinned to [commit `45281c5`](https://github.com/WillyBilly06/ESP32-A2DP-SINK-WITH-CODECS-UPDATED/tree/45281c5212cf5e22eb1d804e75439d2ac051f7c0); the [import manifest](software/components/chime_codec_reference/UPSTREAM.json) records the individual files and hashes.
+- **[LHDC-V5-Decoder](https://github.com/WillyBilly06/LHDC-V5-Decoder)**: the upstream portable LHDC V5 decoder used by the imported snapshot. Its comparison revision is [commit `cf857ce`](https://github.com/WillyBilly06/LHDC-V5-Decoder/tree/cf857ce1a1429965e161e54adbc3f293fd9ce273). The [snapshot record](software/components/chime_codec_reference/vendor/native_bt/codecs/lhdcv5/source_snapshot/SOURCE.json) distinguishes matching files from the two working-change files.
+- **freeaptx**: the aptX / aptX HD implementation is imported through the same ESP32 reference repository at the older [commit `0d85a97`](https://github.com/WillyBilly06/ESP32-A2DP-SINK-WITH-CODECS-UPDATED/tree/0d85a975ec079d954f1bdd3e94d2fed70848c252). See its [provenance manifest](software/components/chime_freeaptx/UPSTREAM.json) and original LGPL-2.1-or-later notices for the original authors and terms.
+
+Only selected codec-related parts of the reference project are integrated; its custom Bluetooth host, codec worker, and renderer are not linked as replacements for Chime's existing paths. Thank you to the upstream authors and contributors for sharing their work.
+
+These acknowledgements identify provenance, not a blanket license grant. Component-specific terms and unresolved permissions are documented in [Third-party notices](THIRD_PARTY_NOTICES.md).
+
 ## Licensing
 
 - **Project-owned software and original DSP project configuration contributions**: [Apache-2.0](LICENSE).

@@ -79,6 +79,18 @@ idf.py --preview -C software build
 - [许可与第三方材料](docs/licenses.md)
 - [公开发布流程](docs/publishing.md)
 
+## 上游项目与致谢
+
+Chime 引用了 **WillyBilly06** 及其他上游贡献者的工作：
+
+- **[ESP32-A2DP-SINK-WITH-CODECS-UPDATED](https://github.com/WillyBilly06/ESP32-A2DP-SINK-WITH-CODECS-UPDATED)**：本项目集成的部分 LDAC 解码实现、LDAC / LHDC V5 适配代码及 codec 生命周期辅助代码来源于该项目。当前引入版本固定为 [提交 `45281c5`](https://github.com/WillyBilly06/ESP32-A2DP-SINK-WITH-CODECS-UPDATED/tree/45281c5212cf5e22eb1d804e75439d2ac051f7c0)，具体文件与哈希见 [引入清单](software/components/chime_codec_reference/UPSTREAM.json)。
+- **[LHDC-V5-Decoder](https://github.com/WillyBilly06/LHDC-V5-Decoder)**：引入快照中便携式 LHDC V5 解码器的上游项目，对照版本为 [提交 `cf857ce`](https://github.com/WillyBilly06/LHDC-V5-Decoder/tree/cf857ce1a1429965e161e54adbc3f293fd9ce273)。[快照记录](software/components/chime_codec_reference/vendor/native_bt/codecs/lhdcv5/source_snapshot/SOURCE.json) 区分了匹配文件与两份带工作修改的文件。
+- **freeaptx**：aptX / aptX HD 实现通过同一 ESP32 参考仓库的较早 [提交 `0d85a97`](https://github.com/WillyBilly06/ESP32-A2DP-SINK-WITH-CODECS-UPDATED/tree/0d85a975ec079d954f1bdd3e94d2fed70848c252) 引入；原作者与 LGPL-2.1-or-later 条款按源文件及 COPYING 保留，来源见 [溯源清单](software/components/chime_freeaptx/UPSTREAM.json)。
+
+本项目只集成参考项目中选定的 codec 相关部分，没有链接其自定义蓝牙 host、codec worker 或 renderer 来替代 Chime 现有链路。感谢上游作者与贡献者公开分享相关工作。
+
+致谢用于说明来源，不代表全部上游内容适用同一许可证；逐项许可及授权待确认事项见 [第三方声明](THIRD_PARTY_NOTICES.md)。
+
 ## 许可证
 
 - **自有软件与原创 DSP 工程配置贡献**：[Apache-2.0](LICENSE)。
