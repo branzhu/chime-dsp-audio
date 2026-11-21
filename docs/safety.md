@@ -1,28 +1,30 @@
-# 安全与已知限制
+English | [简体中文](safety.zh-CN.md)
 
-## 音频与电气
+# Safety and known limitations
 
-- 这是研发板固件，不具备完整产品认证。首次上电应先完成电源、短路、接地、散热和负载检查。
-- Sub 的两个 BTL 输出必须保持独立，禁止将输出直接并联，禁止把 BTL 任一端接地作为普通单端输出。
-- 当前固件无固定 USB 1/8 衰减；功放数字音量为 0 dB、模拟增益为 −8 dB，DSP 使用工程编译增益。升级自旧固件时输出电平可能显著变化；先大幅降低电脑与手机音量。
-- 本地静音 / 待机与 STOP 是软件控制，不是电源隔离或急停装置。不要以其替代硬件保护。
-- 不宣称存在已验证的扬声器功率限制、超低频保护、全负载热保护或无爆音切换。
+## Audio and electrical safety
 
-## 网络与无线
+- This is development-board firmware, not a fully certified product. Before first power-on, check power supplies, shorts, grounding, cooling, and loads.
+- Keep the two Sub BTL outputs independent. Never connect amplifier outputs directly in parallel, and never ground either BTL terminal as though it were a single-ended output.
+- The current firmware has no fixed USB 1/8 attenuation. Amplifier digital volume is 0 dB, analog gain is −8 dB, and the DSP uses the project's compiled gains. Output levels may change substantially when upgrading from older firmware: greatly reduce computer / phone volume first.
+- Local mute / standby and STOP are software controls, not power isolation or emergency-stop devices. They do not replace hardware protection.
+- Verified speaker power limiting, subsonic protection, full-load thermal protection, and click-free switching are not claimed.
 
-当前面向可信局域网 bench 使用：
+## Networking and wireless
 
-- SigmaStudio TCP bridge 监听 8086，无客户端身份认证。连接即可影响 DSP 所有权和正常播放；不要向互联网暴露，不做路由器端口映射。
-- Web 的 Origin / 请求头检查不是用户身份认证。配网默认 AP 密码 `chime-setup` 是固定研发配置，不是设备唯一密钥。
-- 蓝牙使用 Just Works，未连接时可被发现 / 连接；连接会选择蓝牙音源。不要假定已实现物理授权配对窗口。
-- 不要公开含密码、设备地址、私人录音和个人路径的原始日志，也不要将凭据编译进公开固件。
+The current firmware is intended for bench use on a trusted LAN:
 
-## 仍待修复或验收
+- The SigmaStudio TCP bridge listens on port 8086 without client authentication. Connecting can affect DSP ownership and normal playback. Do not expose it to the Internet or configure router port forwarding.
+- Web Origin / request-header checks are not user authentication. The default provisioning AP password, `chime-setup`, is a fixed development setting, not a device-unique secret.
+- Bluetooth uses Just Works. While disconnected, the device can be discovered / connected to; a connection selects the Bluetooth source. Do not assume a physically authorized pairing window exists.
+- Do not share raw logs containing passwords, device addresses, private recordings, or personal paths. Do not compile credentials into public firmware.
 
-1. **高优先级**：owner 中同步 TCP 发送遇到背压时，可延迟 STOP 与功放保护轮询；当前发送期限可达 30 秒。需解耦网络 I/O 和安全控制，并增加组合故障测试。
-2. 网络辅助服务初始化失败仍可能整体停止本地音频，故障域还需收敛。
-3. BT 重新缓冲恢复边界存在波形不连续 / 点击声风险，需 de-click 设计与板测。
-4. 主机 ASan / malformed-frame 回归不能证明射频吞吐、RTOS 调度、手机互通或长时间稳定性。
-5. 当前默认实验 codec 的授权与专利权利尚未闭环；构建成功不代表允许分发。
+## Known issues and validation gaps
 
-此前用户确认过早期内置 SBC 在实板工作，但不能据此为当前所有 codec、固件版本、源切换、功率或安全场景标记验收通过。
+1. **High priority**: synchronous TCP sends in the control owner can delay STOP handling and amplifier-protection polling under backpressure; the current send deadline can reach 30 seconds. Network I/O and safety control still need separation and combined-fault testing.
+2. Initialization failures in auxiliary network services can still stop local audio entirely. Failure isolation needs improvement.
+3. Bluetooth rebuffer recovery can produce waveform discontinuities / clicks. De-click handling and board tests are still needed.
+4. Host ASan / malformed-frame regressions do not prove RF throughput, RTOS scheduling, phone interoperability, or long-term stability.
+5. Redistribution permissions for imported LDAC / reference adapter code and codec patent rights remain unresolved. A successful build is not permission to redistribute; see [Licensing](licenses.md).
+
+Earlier board-level operation of the built-in SBC path does not validate every codec, firmware revision, source transition, power level, or safety scenario in the current version.

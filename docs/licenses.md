@@ -1,39 +1,41 @@
-# 许可与第三方材料
+English | [简体中文](licenses.zh-CN.md)
 
-项目采用分层许可，不将第三方内容统一重新许可。完整范围见 [LICENSES/README.md](../LICENSES/README.md)，归属、上游固定提交及待确认事项见 [THIRD_PARTY_NOTICES.md](../THIRD_PARTY_NOTICES.md)。
+# Licenses and third-party materials
 
-## 自有材料
+The project uses separate licenses for different materials; it does not relicense all third-party content under one grant. See [License scope](../LICENSES/README.md) for full boundaries and [Third-party notices](../THIRD_PARTY_NOTICES.md) for attribution, pinned upstream revisions, and unresolved permissions. These detailed notices are currently in Simplified Chinese; the summary below does not replace them or the original license texts.
 
-| 内容 | 许可证 / 边界 |
+## Project-owned materials
+
+| Material | License / boundary |
 | --- | --- |
-| 自有固件、网页、脚本、工具、测试程序，以及原创 DSP 工程配置贡献 | [Apache-2.0](../LICENSE)；排除第三方代码、库及生成物中第三方内容 |
-| PCB 工程 `hardware/audio-dsp.epro2` 中的原创设计贡献 | [CERN-OHL-P-2.0](../LICENSES/CERN-OHL-P-2.0.txt)，保留 Notices；嵌入第三方素材不自动纳入 |
-| 公开外壳 STEP / 3MF 的自有模型 | [CC-BY-4.0](../LICENSES/CC-BY-4.0.txt)，不提供或授权未发布 Creo 参数化源文件 |
-| 项目自撰公开文档 | CC-BY-4.0；保留署名、链接并标注修改；第三方引文与许可全文除外 |
-| Logo / 品牌素材、名称与商标 | 不纳入以上许可，不授予品牌背书或认证权利 |
+| Project-owned firmware, web UI, scripts, tools, tests, and original DSP configuration contributions | [Apache-2.0](../LICENSE); excludes third-party code, libraries, and third-party content in generated outputs |
+| Original design contributions in `hardware/audio-dsp.epro2` | [CERN-OHL-P-2.0](../LICENSES/CERN-OHL-P-2.0.txt); retain Notices; embedded third-party materials are not automatically included |
+| Project-owned models in the published STEP / 3MF files | [CC-BY-4.0](../LICENSES/CC-BY-4.0.txt); does not supply or license unpublished native Creo sources |
+| Project-authored public documentation | CC-BY-4.0; retain attribution and links, and identify changes; third-party quotations and license texts are excluded |
+| Logos / branding assets, names, and trademarks | Excluded from the above grants; no endorsement or certification rights granted |
 
-上述许可只授予贡献者有权授予的权利。公开交换模型不等于完整机械源文件开源，PCB 文件也不是已经验收的制造资料。
+These grants cover only rights the contributors are entitled to grant. Exchange models are not complete parametric mechanical source, and the PCB export is not a validated manufacturing package.
 
-## 引用代码的授权待确认说明
+## Unresolved permissions for imported code
 
-本项目也是 LDAC 与参考适配代码的引用和集成者，维护者尚未确认完整授权情况。使用者应根据 [第三方说明](../THIRD_PARTY_NOTICES.md) 中的来源、固定提交、适用法律和自身用途，自行评估使用、修改及再分发所需权利，必要时联系权利人。
+Chime is a downstream integrator of the LDAC implementation and reference adapter code. The maintainers have not established the complete authorization chain. Users must assess the sources and pinned revisions in [Third-party notices](../THIRD_PARTY_NOTICES.md), applicable law, and the rights needed for their use / redistribution; contact rights holders or qualified advisers where necessary.
 
-**“引用”“仅研究”或“自行判断”不构成授权、不免责，也不能补足缺失许可。** LDAC 与未确认许可的参考适配代码不由本项目按 Apache-2.0 或其他统一许可重新授权；当前正式发布仍存在第三方授权待确认项。
+**Attribution, research-only wording, or asking users to make their own assessment does not grant permission, remove responsibility, or supply missing authorization.** LDAC and reference adapter code with unverified permissions are not relicensed under Chime's Apache-2.0 or another blanket grant. Their redistribution remains an unresolved issue.
 
-LHDC V5 decoder 上游固定提交的 README 明确声明实现采用 Apache-2.0，见 [原声明摘录](../LICENSES/LHDC-V5-NOTICE.md)。该声明不扩展到整个参考适配仓库，不等于 Sony / Savitech 等第三方 codec 专利、商标或认证许可；两份工作修改文件还需保留修改来源。
+The pinned LHDC V5 decoder upstream README explicitly licenses that implementation under Apache-2.0; see the [upstream declaration](../LICENSES/LHDC-V5-NOTICE.md). This does not cover the entire reference adapter repository or grant Sony / Savitech codec patents, trademarks, or certification. Retain provenance for the two working-change files as well.
 
-## 依赖和固件分发
+## Dependencies and firmware distribution
 
-- freeaptx 源文件及 COPYING 为 **LGPL-2.1-or-later**。静态固件分发需履行对应源码、修改、告知、重新链接和必要调试逆向工程等义务；上传源码或上游链接不自动证明已履行所有要求。
-- `esp_audio_codec` 2.6.2 使用 **Espressif Modified MIT**，仅限结合乐鑫产品使用，不能标为标准 MIT 或通用开源许可。依赖包内部其他 codec 条款另行核对。
-- ESP-IDF、mDNS、esp_tinyusb、TinyUSB、cJSON 及 USB 描述符保持各自许可和声明；不要用 SDK 根许可覆盖全部依赖。
-- SigmaStudio / 厂商库生成物、PCB 和机械模型中的第三方素材需单独核对。来源哈希只证明完整性，不证明授权。
+- freeaptx source headers and COPYING specify **LGPL-2.1-or-later**. Distribution of statically linked firmware requires satisfying applicable corresponding-source, modification, notice, relinking, and debugging reverse-engineering obligations. Uploading source or an upstream URL alone does not prove compliance.
+- `esp_audio_codec` 2.6.2 uses **Espressif Modified MIT**, restricted to use with Espressif products. It is not standard MIT or a general-purpose open-source license. Check the package's internal third-party codec terms separately.
+- ESP-IDF, mDNS, esp_tinyusb, TinyUSB, cJSON, and the USB descriptors retain their own licenses and notices. The SDK root license does not cover every dependency under one set of terms.
+- Check third-party rights in SigmaStudio / vendor-library outputs and in PCB / mechanical assets separately. Provenance hashes establish integrity, not authorization.
 
-## 正式发布前
+## Before reuse or redistribution
 
-1. 核对所附许可文本、范围、NOTICE 和第三方出处与实际快照一致。
-2. 补足 LDAC / 参考适配代码的授权证据，或真正移除对应源码与依赖并完成构建测试。仅关闭 Kconfig 不够。
-3. 准备并验证 LGPL 和其他依赖的固件分发材料；核对 DSP、PCB、模型中的第三方权利。
-4. 人工审核敏感信息、安全声明与公开范围；导出工具不会代替授权或法律判断。
+1. Check the applicable license texts, scope, NOTICE, and third-party provenance for the version you use.
+2. Obtain sufficient authorization for LDAC / reference adapter code, or actually remove the relevant sources and dependencies and validate the resulting build. Disabling a Kconfig option is not source removal.
+3. Prepare and verify LGPL and other dependency distribution materials; check third-party rights in DSP, PCB, and model files.
+4. Check shared logs and modified releases for credentials and personal data. Retain safety limitations and third-party provenance; do not present build success as authorization or safety certification.
 
-这些是发布审查事项，不是完整法律意见。新增许可仅解决自有材料的许可选择，不表示所有引用内容已完成授权清理。
+These are reuse and redistribution considerations, not comprehensive legal advice. Licensing project-owned materials does not establish clearance for all imported content.

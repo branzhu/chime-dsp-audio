@@ -1,11 +1,14 @@
-# 使用文档
+English | [简体中文](README.zh-CN.md)
 
-对外保留以下入口，历史开发计划、逐日 bring-up、串口原始日志、仪器记录及厂商手册副本不属于公开文档集。
+# Documentation
 
-1. [构建与测试](build.md)
-2. [架构与代码导航](architecture.md)
-3. [安全与已知限制](safety.md)
-4. [许可与第三方材料](licenses.md)
-5. [公开发布流程](publishing.md)
+Start with the build guide before compiling or flashing, and read the safety notes before powering the board or playing audio.
 
-硬件与机械资料分别见 [hardware](../hardware/README.md) 和 [mechanical](../mechanical/README.md)。
+| Guide | English | 简体中文 |
+| --- | --- | --- |
+| Build and host tests | [Build guide](build.md) | [构建与测试](build.zh-CN.md) |
+| Architecture and code map | [Architecture](architecture.md) | [架构与代码导航](architecture.zh-CN.md) |
+| Safety and known limitations | [Safety](safety.md) | [安全与已知限制](safety.zh-CN.md) |
+| Licenses and third-party materials | [Licensing](licenses.md) | [许可与第三方材料](licenses.zh-CN.md) |
+
+For board design files and enclosure exchange models, see the [PCB notes](../hardware/README.md) and [enclosure notes](../mechanical/README.md). Those directory notes are currently in Simplified Chinese. The root [project overview](../README.md) is available in English and Chinese.

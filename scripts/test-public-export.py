@@ -62,10 +62,36 @@ class PublicExportTests(unittest.TestCase):
             self.assertIn('WillyBilly06', text)
             self.assertIn('THIRD_PARTY_NOTICES.md', text)
 
+    def test_public_docs_are_bilingual_user_guides(self):
+        expected = {f'docs/{stem}{language}.md'
+                    for stem in ('README', 'build', 'architecture', 'safety', 'licenses')
+                    for language in ('', '.zh-CN')}
+        self.assertEqual(export.PUBLIC_DOCS, expected)
+        for stem in ('README', 'build', 'architecture', 'safety', 'licenses'):
+            english = (ROOT / f'docs/{stem}.md').read_text(encoding='utf-8')
+            chinese = (ROOT / f'docs/{stem}.zh-CN.md').read_text(encoding='utf-8')
+            self.assertIn(f']({stem}.zh-CN.md)', english.splitlines()[0])
+            self.assertIn(f']({stem}.md)', chinese.splitlines()[0])
+            if stem == 'build':
+                self.assertEqual(re.findall(r'```sh\n(.*?)```', english, re.S),
+                                 re.findall(r'```sh\n(.*?)```', chinese, re.S))
+        for name in sorted(expected | {'README.md', 'README.zh-CN.md'}):
+            text = (ROOT / name).read_text(encoding='utf-8')
+            self.assertNotRegex(text, r'\]\([^)]*publishing(?:\.zh-CN)?\.md')
+            for target in re.findall(r'\[[^\]]*\]\(([^)\s]+)\)', text):
+                if re.match(r'^[a-zA-Z]+:', target) or target.startswith('#'):
+                    continue
+                path = ((ROOT / name).parent / target.split('#')[0]).resolve()
+                with self.subTest(document=name, target=target):
+                    self.assertTrue(path.exists())
+                    if path.is_file():
+                        self.assertTrue(export.is_public(path.relative_to(ROOT).as_posix()))
+
     def test_private_materials_are_not_publishable(self):
         for name in ['.git/config', 'mechanical/front.prt.11', 'mechanical/a.asm.2',
                      'mechanical/a.drw', 'mechanical/nested/private.stp',
-                     'docs/PRD.md', 'LICENSES/private-contract.pdf', 'LICENSES/unreviewed.txt',
+                     'docs/PRD.md', 'docs/publishing.md', 'docs/publishing.zh-CN.md',
+                     'LICENSES/private-contract.pdf', 'LICENSES/unreviewed.txt',
                      'docs/internal/software-development-history.md',
                      'docs/validation/trace.json', 'docs/third-party/adau145x-adi.pdf',
                      'docs/third-party/speaker.docx', 'data/recording.wav',

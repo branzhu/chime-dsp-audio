@@ -1,46 +1,48 @@
-# 架构与代码导航
+English | [简体中文](architecture.zh-CN.md)
 
-## 控制面与数据面
+# Architecture and code map
 
-`software/main/app_main.c` 初始化板级资源，然后进入当前 `bench_bridge_run()`。名称中保留了 bench 历史，但这里实际承担当前固件的主控制流程。
+## Control and data planes
 
-- **控制 owner**：`bench_bridge.c` 统一协调 DSP、功放、Web / TCP 请求、音源以及停止 / 故障状态。
-- **共享数据面**：`chime_usb.c` 包含当前 USB / BT 共享 PCM worker 与唯一 I2S TX 路径；音源选择不是额外创建一个蓝牙输出任务。
-- **蓝牙**：`chime_bluetooth.c` 管理连接和 A2DP / AVRCP，`chime_bt_decoder.c` 管理解码 worker，`chime_bt_pcm.c` 管理 PCM 水位与缓冲，`chime_bt_delay.c` 管理接收端延迟估计。
-- **DSP / 功放**：`chime_dsp_boot.c`、`bench_dsp.c`、`bench_audio.c`、`bench_sound.c` 配合 `board_support` 和 `dsp_control` 执行受控访问。
-- **交互**：`chime_input.c` / `chime_controls.c` 处理编码器与按键；`chime_led.c` / `chime_indicator.c` 处理 LED。
-- **网络**：`chime_network.c`、配网 guard、`bench_web.c` / `bench_status.c` 提供配网、状态与手动控制。
+`software/main/app_main.c` initializes board resources and enters `bench_bridge_run()`. Despite its historical bench name, this is the current firmware's main control flow.
 
-源切换使用 epoch / generation 让旧 PCM 和排队操作失效。本地静音、待机、Web STOP、外部 DSP 所有权和硬故障不能被普通音量操作擅自清除。上述设计意图不代表所有并发和异常组合均已实板验收。
+- **Control owner**: `bench_bridge.c` coordinates the DSP, amplifiers, web / TCP requests, audio sources, and stop / fault state.
+- **Shared data plane**: `chime_usb.c` contains the USB / Bluetooth shared PCM worker and the sole I2S TX path. Source selection does not create a separate Bluetooth output task.
+- **Bluetooth**: `chime_bluetooth.c` manages connections and A2DP / AVRCP; `chime_bt_decoder.c` manages the decoder worker; `chime_bt_pcm.c` handles PCM buffering and watermarks; `chime_bt_delay.c` estimates sink delay.
+- **DSP / amplifiers**: `chime_dsp_boot.c`, `bench_dsp.c`, `bench_audio.c`, and `bench_sound.c` perform coordinated access through `board_support` and `dsp_control`.
+- **Local interaction**: `chime_input.c` / `chime_controls.c` handle the encoder and button; `chime_led.c` / `chime_indicator.c` handle the LED.
+- **Networking**: `chime_network.c`, the provisioning guard, and `bench_web.c` / `bench_status.c` provide provisioning, status, and manual control.
 
-## Codec 边界
+Source changes use epochs / generations to invalidate old PCM and queued operations. Ordinary volume changes must not clear local mute, standby, web STOP, external DSP ownership, or hard faults. These are design intentions, not proof that every concurrency and failure combination has passed board-level validation.
 
-| 路径 | 责任 |
+## Codec boundaries
+
+| Path / dependency | Responsibility |
 | --- | --- |
-| Espressif `esp_audio_codec` | 当前外部 SBC、AAC-LC、Opus API |
-| `software/components/chime_freeaptx/` | aptX / aptX HD 后端；LGPL 义务需单独履行 |
-| `software/components/chime_ldac/` | 当前 LDAC 薄封装 |
-| `software/components/chime_lhdc/` | 当前 LHDC V5 薄封装 |
-| `software/components/chime_codec_reference/` | 唯一 reference LDAC / LHDC backend、上游来源 pin 和生成器 |
+| Espressif `esp_audio_codec` | Current external SBC, AAC-LC, and Opus APIs |
+| `software/components/chime_freeaptx/` | aptX / aptX HD backend; separate LGPL obligations apply |
+| `software/components/chime_ldac/` | Current LDAC thin wrapper |
+| `software/components/chime_lhdc/` | Current LHDC V5 thin wrapper |
+| `software/components/chime_codec_reference/` | The single reference LDAC / LHDC backend, pinned upstream sources, and generators |
 
-vendor 原始源、构建目录的 port 生成源、两层薄封装是同一套后端的不同层次，不是多套可并行选择的旧解码器。旧 `chime_ldac/src` / `chime_lhdc/src` 不再保留。
+The original vendor sources, generated port sources in the build directory, and thin wrappers are layers of the same backend, not alternative legacy decoders. The old `chime_ldac/src` / `chime_lhdc/src` trees are no longer retained. Upstream provenance and unresolved permissions are described in [Third-party notices](../THIRD_PARTY_NOTICES.md) and the [licensing guide](licenses.md).
 
-## DSP 数据流
+## DSP data flow
 
-`dsp/esp32-bindings.json` 按模块名绑定输入和输出增益，`scripts/freeze-dsp-image.py` 将编译数据转为 `software/main/generated/` 下的冻结镜像、参数头和来源 manifest。构建时再次校验；输出模式切换保留启用支路的编译增益，不强制写 unity。
+`dsp/esp32-bindings.json` binds input and output gains by module name. `scripts/freeze-dsp-image.py` converts compiler outputs into the frozen image, parameter headers, and provenance manifest under `software/main/generated/`. The build verifies these again. Output-mode changes preserve the compiled gain of enabled branches rather than forcing unity gain.
 
-当前允许板级 L / R / Sub 路由，但不能从输出模式名称推断所有滤波、限幅、超低频或热保护已经满足产品要求。
+The current board supports L / R / Sub routing. Output-mode names do not establish that filtering, limiting, subsonic protection, or thermal protection meet product requirements.
 
-## 硬件映射
+## Board mapping
 
-GPIO / I²C 地址的代码权威入口是 `software/components/board_support/include/board_support.h`，使用前须与具体 PCB 核对。
+The authoritative code entry point for GPIOs and I²C addresses is `software/components/board_support/include/board_support.h`. Check it against your actual PCB before use.
 
-| 功能 | 当前代码配置 |
+| Function | Current code configuration |
 | --- | --- |
 | I²C SDA / SCL | IO0 / IO1 |
-| ADAU1451 / LR 功放 / Sub 功放地址 | `0x38` / `0x4c` / `0x4d` |
+| ADAU1451 / LR amplifier / Sub amplifier addresses | `0x38` / `0x4c` / `0x4d` |
 | TDM DOUT / BCLK / FS | IO9 / IO10 / IO11 |
-| 编码器 A / B / 按键 | IO42 / IO40 / IO43，按键低有效 |
+| Encoder A / B / button | IO42 / IO40 / IO43; button active low |
 | LR / Sub PDN | IO15 / IO13 |
 
-这不是通用 ESP32 开发板固件；改硬件后必须审查启动状态、时钟、USB、故障和电源控制，而不只是改几个 GPIO。
+This is not generic ESP32 development-board firmware. A hardware change requires reviewing startup states, clocks, USB, faults, and power control, not just changing GPIO numbers.

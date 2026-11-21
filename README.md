@@ -52,7 +52,7 @@ I haven't packaged a one-click flashing procedure. In particular, don't mix a ne
 | [`mechanical/`](mechanical/) | STEP / 3MF enclosure models; native Creo files are not published |
 | [`scripts/`](scripts/) | Build, DSP sync, testing, and release helpers |
 | [`tools/wireshark/`](tools/wireshark/) | SigmaDSP protocol analysis tools |
-| [`docs/`](docs/README.md) | Technical notes (currently in Chinese) |
+| [`docs/`](docs/README.md) | User guides in English and Simplified Chinese |
 
 The public repository is an exported snapshot, not the complete development history. For manufacturing details, start with the [PCB notes](hardware/README.md) and [enclosure notes](mechanical/README.md).
 
@@ -62,7 +62,6 @@ The public repository is an exported snapshot, not the complete development hist
 - [Build and tests](docs/build.md)
 - [Safety and known limitations](docs/safety.md)
 - [Licensing and third-party code](docs/licenses.md)
-- [Public release process](docs/publishing.md)
 
 ## Credits and licenses
 

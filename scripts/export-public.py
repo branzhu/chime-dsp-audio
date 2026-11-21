@@ -10,9 +10,11 @@ import subprocess
 import sys
 
 ROOT = Path(__file__).resolve().parents[1]
+# User-facing bilingual guides only; maintainer publishing notes stay private.
 PUBLIC_DOCS = {
-    'docs/README.md', 'docs/build.md', 'docs/architecture.md',
-    'docs/safety.md', 'docs/licenses.md', 'docs/publishing.md',
+    f'docs/{stem}{language}.md'
+    for stem in ('README', 'build', 'architecture', 'safety', 'licenses')
+    for language in ('', '.zh-CN')
 }
 LICENSE_FILES = {
     'LICENSE', 'NOTICE', 'THIRD_PARTY_NOTICES.md', 'LICENSES/README.md',

@@ -1,30 +1,32 @@
-# 构建与测试
+English | [简体中文](build.zh-CN.md)
 
-## 工具链
+# Build and host tests
 
-- ESP-IDF **6.1**，目标 **ESP32-S31 / `esp32s31`**。预览目标使用 `--preview`。
-- Python 与 CMake / Ninja 使用 ESP-IDF 环境提供的版本。
-- 主机测试使用 Node.js（当前验证环境为 26.12.1）、Python 3 和 C 编译器；Linux 可使用 GCC，Windows 使用 Visual Studio 2022 的 MSVC x64 环境并设置 `CC=cl`。
-- Wireshark 集成测试另需带 Lua 支持的 TShark；用 `TSHARK` 指定可执行文件。
-- 编辑 DSP 工程还需要匹配工程版本的 SigmaStudio；仅构建现有冻结快照不需要启动 SigmaStudio。
+## Toolchain
 
-## 固件构建
+- **ESP-IDF 6.1**, targeting **ESP32-S31 / `esp32s31`**. Use `--preview` for this preview target.
+- Use the Python, CMake, and Ninja versions provided by the ESP-IDF environment.
+- Host tests require Node.js (the currently validated environment uses 26.12.1), Python 3, and a C compiler. Linux can use GCC; on Windows, use the Visual Studio 2022 MSVC x64 environment and set `CC=cl`.
+- Wireshark integration tests also require TShark with Lua support. Set `TSHARK` to its executable if needed.
+- Editing the DSP project requires a matching SigmaStudio version. Building the existing frozen snapshot does not require launching SigmaStudio.
 
-先加载 ESP-IDF 环境，在仓库根目录执行：
+## Firmware build
+
+Activate the ESP-IDF environment, then run from the repository root:
 
 ```sh
 idf.py --preview -C software build
 ```
 
-`software/dependencies.lock` 固定组件版本；首次构建需要联网下载。Bluetooth / TinyUSB 的适配由项目脚本校验上游文件哈希后生成到构建目录，不应手改全局 SDK 或 managed components。SDK 哈希不匹配时，应审查并移植，而不是删掉校验。
+`software/dependencies.lock` pins component versions; the first build needs network access to download them. Project scripts check upstream Bluetooth / TinyUSB file hashes and generate the required adaptations into the build directory. Do not edit the global SDK or managed components by hand. If SDK hashes differ, review and port the changes instead of bypassing verification.
 
-当前跟踪的 `software/sdkconfig` 是板级构建配置，`sdkconfig.defaults` 是默认项。构建输出和下载组件不纳入公开仓库。
+The tracked `software/sdkconfig` is the board build configuration; `sdkconfig.defaults` supplies defaults. Build outputs and downloaded components are not part of the public source repository.
 
-默认启用实验性 vendor codec；可以在 `menuconfig` 的 **Chime Bluetooth** 中关闭 vendor codec 回到 SBC / AAC，或再关闭 external codec 回到 SDK SBC。关闭选项只改变链接结果，**不会从仓库中移除第三方源码，也不会消除源码再分发问题**。
+Experimental vendor codecs are enabled by default. In **Chime Bluetooth** under `menuconfig`, disabling vendor codecs returns to SBC / AAC; disabling external codecs as well returns to SDK SBC. These options change what is linked: **they do not remove third-party sources from the repository or resolve source redistribution permissions**. See [Licensing](licenses.md).
 
-## 主机回归
+## Host regressions
 
-在仓库根目录执行，无需连接板卡：
+Run from the repository root; no board connection is required:
 
 ```sh
 node scripts/test-input.mjs
@@ -35,20 +37,19 @@ node scripts/test-frozen-dsp.mjs
 node scripts/test-sigma-bridge.mjs
 node scripts/test-bluetooth.mjs
 python scripts/test-reference-codec-port.py
-python scripts/test-public-export.py
 ```
 
-- Windows：在 x64 Native Tools 环境运行，设置 `CC=cl`，并将 `PYTHON` 指向真实 Python 可执行文件；避免依赖 Windows 应用别名。
-- `BT_LDAC_ASAN=1` / `BT_LHDC_ASAN=1` 启用对应主机 ASan 路径。
-- `IDF_PATH` 和 `PYTHON` 配好后，蓝牙测试还会验证实际 SDK delay / AVDTP hook；缺少时会明确跳过，不能将跳过算作通过。
-- `node scripts/test-sigma-wireshark.mjs` 需要 TShark。
-- `node --test scripts/check-bench-bridge.test.mjs scripts/sigmastudio-tcp-probe.test.mjs` 验证辅助工具。
+- On Windows, run in an x64 Native Tools environment, set `CC=cl`, and point `PYTHON` to a real Python executable rather than a Windows app alias.
+- `BT_LDAC_ASAN=1` / `BT_LHDC_ASAN=1` enable the corresponding host AddressSanitizer paths.
+- With `IDF_PATH` and `PYTHON` configured, Bluetooth tests also check the actual SDK delay / AVDTP hooks. Missing prerequisites produce explicit skips; a skipped check is not a pass.
+- `node scripts/test-sigma-wireshark.mjs` requires TShark.
+- `node --test scripts/check-bench-bridge.test.mjs scripts/sigmastudio-tcp-probe.test.mjs` checks the helper tools.
 
-小型协议、寄存器事实及历史标定夹具存于 `software/tests/fixtures/`；回归不依赖私有开发文档或厂商 PDF 副本。历史标定值不代表当前 DSP 增益配置的安全输出能力。
+Small protocol fixtures, register facts, and historical calibration fixtures live in `software/tests/fixtures/`. Regressions do not require private development documents or vendor PDF copies. Historical calibration values do not establish safe output levels for the current DSP gain configuration.
 
-## 修改 DSP
+## Changing the DSP project
 
-工程入口是 `dsp/ADAU1451.ssprj`，绑定入口是 `dsp/esp32-bindings.json`。
+The project entry point is `dsp/ADAU1451.ssprj`; bindings are defined in `dsp/esp32-bindings.json`.
 
 ```sh
 python scripts/freeze-dsp-image.py --update
@@ -56,10 +57,10 @@ python scripts/freeze-dsp-image.py
 node scripts/test-frozen-dsp.mjs
 ```
 
-先用匹配版本的 SigmaStudio 编译工程，再更新冻结数据。生成器会核对工程、参数地址、编译数据及增益；失败时先修复不一致，不要直接改生成头文件或降低校验要求。Git 必须保留 `.gitattributes` 中声明的原始字节，否则来源哈希会变化。
+Compile the project in the matching SigmaStudio version before updating frozen data. The generator checks the project, parameter addresses, compiled data, and gains. Fix inconsistencies rather than editing generated headers or weakening checks. Git must preserve the bytes specified in `.gitattributes`, or source hashes will change.
 
-## 烧录前
+## Before flashing
 
-本项目使用 16 MiB Flash 配置和 **3 MiB factory 应用分区**。不要只刷 app 覆盖旧版更小分区；先检查完整构建产物和分区表。USB 音乐接口与调试接口不能想当然混用。
+The board configuration uses **16 MiB flash** and a **3 MiB factory application partition**. Do not flash only an application over an older, smaller partition layout. Check the complete build outputs and partition table first. Do not assume the USB audio and debugging interfaces are interchangeable.
 
-阅读 `scripts/flash-firmware.ps1` 的警告，并根据自己的接线和调试器选择烧录方式。不要自动擦除 NVS、写 EEPROM 或烧安全 eFuse。断开负载检查供电、接线和功放状态后，再以很低的主机 / 手机音量开始验证。
+Read the warnings in `scripts/flash-firmware.ps1` and choose a flashing method appropriate to your wiring and debugger. Do not automatically erase NVS, write EEPROM, or burn security eFuses. With loads disconnected, check power, wiring, and amplifier state; begin playback validation at a very low host / phone volume. See [Safety](safety.md).

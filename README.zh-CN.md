@@ -17,7 +17,7 @@ Bluetooth A2DP ─┘       │
                         └── 编码器 / LED / Wi-Fi Web UI
 ```
 
-两只卫星箱用的是 GP52-463 两英寸单元、3D 打印密闭箱；改装后的 Stage SE 负责低频。它的两个喇叭分别由独立的 BTL 功放通道驱动，**不能把功放输出端直接并联**。通电前请先看[安全说明和已知问题](docs/safety.md)。
+两只卫星箱用的是 GP52-463 两英寸单元、3D 打印密闭箱；改装后的 Stage SE 负责低频。它的两个喇叭分别由独立的 BTL 功放通道驱动，**不能把功放输出端直接并联**。通电前请先看[安全说明和已知问题](docs/safety.zh-CN.md)。
 
 ## 目前能做什么
 
@@ -38,9 +38,9 @@ DSP 现在主要干的还是分频、PEQ、Gain 这些基础工作。当初想�
 idf.py --preview -C software build
 ```
 
-首次编译会下载锁定版本的 Espressif 组件。其他构建命令和主机测试方法见[构建文档](docs/build.md)。
+首次编译会下载锁定版本的 Espressif 组件。其他构建命令和主机测试方法见[构建文档](docs/build.zh-CN.md)。
 
-暂时没有整理成一键烧录流程。尤其不要把新应用直接刷到旧分区表上，也别为了恢复 Wi-Fi 就随手擦掉 NVS；相关注意事项见[安全与已知问题](docs/safety.md)。
+暂时没有整理成一键烧录流程。尤其不要把新应用直接刷到旧分区表上，也别为了恢复 Wi-Fi 就随手擦掉 NVS；相关注意事项见[安全与已知问题](docs/safety.zh-CN.md)。
 
 ## 仓库里有什么
 
@@ -52,17 +52,16 @@ idf.py --preview -C software build
 | [`mechanical/`](mechanical/) | STEP / 3MF 箱体模型；未公开 Creo 原生文件 |
 | [`scripts/`](scripts/) | 构建、DSP 同步、测试及发布脚本 |
 | [`tools/wireshark/`](tools/wireshark/) | SigmaDSP 协议分析工具 |
-| [`docs/`](docs/README.md) | 技术文档 |
+| [`docs/`](docs/README.zh-CN.md) | 技术文档 |
 
 公开仓库是从开发仓库整理出来的快照，不包含完整开发历史。要加工 PCB 或箱体的话，先看 [PCB 说明](hardware/README.md)和[箱体文件说明](mechanical/README.md)。
 
 ## 文档
 
-- [架构与代码导航](docs/architecture.md)
-- [构建与测试](docs/build.md)
-- [安全与已知问题](docs/safety.md)
-- [许可与第三方代码](docs/licenses.md)
-- [公开发布流程](docs/publishing.md)
+- [架构与代码导航](docs/architecture.zh-CN.md)
+- [构建与测试](docs/build.zh-CN.md)
+- [安全与已知问题](docs/safety.zh-CN.md)
+- [许可与第三方代码](docs/licenses.zh-CN.md)
 
 ## 致谢与许可
 
