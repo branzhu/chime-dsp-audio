@@ -1,107 +1,81 @@
-[English](README.md) | 简体中文
+[English](README.md)
 
-# Chime · DSP Audio
+# Chime
 
-基于 **ESP32-S31 + ADAU1451 + TAS5825M** 的桌面 DSP 音箱研发项目，包含固件、SigmaStudio 工程、PCB 工程导出文件和外壳交换模型。
+Chime 是我折腾的一套桌面 2.1 音箱，起点是一台在架子上吃灰的 Creative Stage SE。它在我习惯的小音量下听起来不太对劲，但箱体和低频单元还有利用价值。于是我保留了 Stage SE 的箱体和喇叭，让它负责低频，另外做了一对 3D 打印的小卫星箱，再用自己的 PCB 替换掉原装控制板。
 
-USB / 蓝牙负责音频输入，ADAU1451 承担音频处理，ESP32 负责音源、控制与状态管理。项目优先维持单一音频输出链路和受控的 DSP / 功放操作，而不是在不同功能中各建一套播放逻辑。
+主控是 ESP32-S31，负责 USB、蓝牙音频和系统控制；ADAU1451 负责 DSP；两颗 TAS5825M 负责功率放大。我想要的是一套能自己测、自己调、想改就改的桌面音响。
 
-> **当前是研发 / bench 版本，不是经过量产、安全或声学认证的成品方案。** 部分功能只有主机回归与目标构建证据。自有材料已采用分层许可，但引用的 LDAC 与部分参考适配代码仍有授权待确认事项；当前内容是公开发布准备稿，不能据此认为所有材料已获开源或商业分发授权。详见[许可与第三方材料](docs/licenses.md)。
+仓库里有固件、SigmaStudio 工程、PCB 设计导出文件和箱体模型。目前还是个人研发项目，不是一套拿到文件就能直接照着量产的成品方案。
 
-## 能做什么
-
-- **USB Audio**：48 kHz、双声道 PCM16 输入，共享 PCM renderer 输出到 DSP。
-- **蓝牙 A2DP**：代码支持 SBC、AAC-LC、aptX、aptX HD、Android Opus、LDAC、LHDC V5；后五项属于实验扩展。LDAC / LHDC 目前只暴露 44.1 / 48 kHz 双声道 PCM16，LHDC 不支持 V2 / V3。
-- **音源选择**：A2DP 连接时选择蓝牙，暂停仍占源，断开后返回 USB；不混音。
-- **DSP 工程同步**：按工程中的模块名称绑定参数，校验 SigmaStudio 工程、编译产物和固件冻结镜像的一致性。
-- **本地操作**：旋钮调整所选音源音量，短按本地静音，长按软件待机 / 唤醒；RGB LED 指示状态。
-- **调试与控制**：Web 配网 / 状态 / 手动控制，以及用于可信局域网调试的 SigmaStudio TCP bridge。
-- **主机测试**：覆盖协议、音源切换、PCM、codec、输入、LED、Web 和冻结 DSP 数据。
-
-蓝牙 codec 表示当前源码与配置中存在的能力，**不代表所有手机、码率、射频环境或长播场景已通过验证，也不代表官方认证**。后端来源和限制见[架构](docs/architecture.md)与[许可说明](docs/licenses.md)。
-
-## 系统结构
+## 硬件与音频链路
 
 ```text
 USB Audio ───────┐
-                ├─ ESP32-S31：音源选择 / 解码 / 共享 PCM renderer
-Bluetooth A2DP ─┘                    │ I2S / TDM
-                                     ▼
-                               ADAU1451 DSP
-                                     │
-                               TAS5825M × 2
-                                     │
-                              L / R / Sub 输出
-
-旋钮 / LED / Web ── 控制与状态 ── DSP / 功放单一 owner
+                 ├── ESP32-S31 ── I2S / TDM ── ADAU1451 DSP ── TAS5825M × 2 ── L / R / Sub
+Bluetooth A2DP ─┘       │
+                        └── 编码器 / LED / Wi-Fi Web UI
 ```
 
-Sub 使用两个独立 BTL 输出通道；**禁止在外部直接并联功放输出**。软件保护不等同于硬件安全保证，试听前请阅读[安全与已知限制](docs/safety.md)。
+两只卫星箱用的是 GP52-463 两英寸单元、3D 打印密闭箱；改装后的 Stage SE 负责低频。它的两个喇叭分别由独立的 BTL 功放通道驱动，**不能把功放输出端直接并联**。通电前请先看[安全说明和已知问题](docs/safety.md)。
 
-## 目录
+## 目前能做什么
 
-| 路径 | 内容 |
-| --- | --- |
-| [`software/`](software/) | ESP-IDF 固件、组件及主机测试 |
-| [`dsp/`](dsp/) | SigmaStudio 工程、编译输出与 ESP32 参数绑定 |
-| [`hardware/`](hardware/) | PCB 工程导出文件；当前为 `audio-dsp.epro2`，不是 Gerber 制造包 |
-| [`mechanical/`](mechanical/) | 对外保留 STEP / 3MF 交换模型，不发布 Creo 原生源文件 |
-| [`scripts/`](scripts/) | 构建辅助、DSP 同步、测试与公开快照导出工具 |
-| [`tools/wireshark/`](tools/wireshark/) | SigmaDSP 协议分析工具 |
-| [`docs/`](docs/README.md) | 面向使用者的精简文档 |
-| [`assets/branding/`](assets/branding/) | 项目标识素材 |
+- **USB Audio**：48 kHz、双声道、16-bit PCM。
+- **蓝牙 A2DP**：SBC、AAC-LC，以及实验性的 aptX、aptX HD、Android Opus、LDAC 和 LHDC V5 路径。源码里有不等于各种手机、码率和长时间播放都验证过。LDAC/LHDC 目前输出 44.1/48 kHz 双声道 PCM16；不支持 LHDC V2/V3。
+- **音源切换**：蓝牙连接后切到蓝牙；暂停不切回 USB；断开蓝牙后回到 USB。目前不做 USB/蓝牙混音。
+- **DSP 控制**：SigmaStudio 工程、编译数据和固件里的 DSP 参数会做一致性检查。
+- **本机操作**：编码器调音量，短按静音，长按待机/唤醒；RGB LED 显示状态。Web 页面提供 Wi-Fi 配网和手动控制。
+- **调试**：可信局域网内可通过 TCP bridge 连接 SigmaStudio；另外还有覆盖音频、控件、codec、DSP 数据等的主机测试。
 
-研发仓库可能包含更多内部记录；公开候选快照只按白名单收录上述必要内容，不携带原仓库的 Git 历史。
+DSP 现在主要干的还是分频、PEQ、Gain 这些基础工作。当初想玩的 Dynamic Loudness、Virtual Bass 等高级算法，还在待办列表里。
 
-## 构建与测试
+## 编译固件
 
-使用当前已验证的 **ESP-IDF 6.1 / `esp32s31`** 工具链，并先进入 ESP-IDF 的环境：
+目前使用 **ESP-IDF 6.1**，目标芯片 `esp32s31`。进入 ESP-IDF 环境后，在仓库根目录运行：
 
 ```sh
 idf.py --preview -C software build
 ```
 
-首次构建会下载锁定版本的 Espressif 组件。完整命令、主机编译器与测试分类见[构建与测试](docs/build.md)。
+首次编译会下载锁定版本的 Espressif 组件。其他构建命令和主机测试方法见[构建文档](docs/build.md)。
 
-构建不是烧录。**不要把新应用单独刷入旧分区表，不要为恢复联网随意擦除 NVS，也不要忽略音量变化警告。** 本项目不提供未经板级确认的一键上电发声流程。
+暂时没有整理成一键烧录流程。尤其不要把新应用直接刷到旧分区表上，也别为了恢复 Wi-Fi 就随手擦掉 NVS；相关注意事项见[安全与已知问题](docs/safety.md)。
 
-## 硬件与机械资料
+## 仓库里有什么
 
-- [PCB 文件说明](hardware/README.md)：打开格式、当前交付范围及制造前检查。
-- [外壳文件说明](mechanical/README.md)：STEP / 3MF 的用途及 Creo 源文件边界。
-- 这些文件仅描述当前研发版本，不构成加工、装配、电气或声学验收结论。
+| 目录 | 内容 |
+| --- | --- |
+| [`software/`](software/) | ESP-IDF 固件、组件及主机测试 |
+| [`dsp/`](dsp/) | SigmaStudio 工程、生成数据、ESP32 参数绑定 |
+| [`hardware/`](hardware/) | EasyEDA PCB 导出文件 `audio-dsp.epro2`，**不是** Gerber 制造包 |
+| [`mechanical/`](mechanical/) | STEP / 3MF 箱体模型；未公开 Creo 原生文件 |
+| [`scripts/`](scripts/) | 构建、DSP 同步、测试及发布脚本 |
+| [`tools/wireshark/`](tools/wireshark/) | SigmaDSP 协议分析工具 |
+| [`docs/`](docs/README.md) | 技术文档 |
+
+公开仓库是从开发仓库整理出来的快照，不包含完整开发历史。要加工 PCB 或箱体的话，先看 [PCB 说明](hardware/README.md)和[箱体文件说明](mechanical/README.md)。
 
 ## 文档
 
-- [构建与测试](docs/build.md)
 - [架构与代码导航](docs/architecture.md)
-- [安全、验证边界与已知问题](docs/safety.md)
-- [许可与第三方材料](docs/licenses.md)
+- [构建与测试](docs/build.md)
+- [安全与已知问题](docs/safety.md)
+- [许可与第三方代码](docs/licenses.md)
 - [公开发布流程](docs/publishing.md)
 
-## 上游项目与致谢
+## 致谢与许可
 
-Chime 引用了 **WillyBilly06** 及其他上游贡献者的工作：
+蓝牙 codec 部分引用了 [ESP32-A2DP-SINK-WITH-CODECS-UPDATED](https://github.com/WillyBilly06/ESP32-A2DP-SINK-WITH-CODECS-UPDATED)、[LHDC-V5-Decoder](https://github.com/WillyBilly06/LHDC-V5-Decoder) 和 **freeaptx** 的工作。感谢 WillyBilly06 和其他上游作者。具体导入的版本和文件都记录在 [codec 引入清单](software/components/chime_codec_reference/UPSTREAM.json)、[LHDC 快照记录](software/components/chime_codec_reference/vendor/native_bt/codecs/lhdcv5/source_snapshot/SOURCE.json)和 [freeaptx 清单](software/components/chime_freeaptx/UPSTREAM.json)里。我只拿了需要的 codec 相关部分，没有替换 Chime 自己的蓝牙 host 或音频 renderer。
 
-- **[ESP32-A2DP-SINK-WITH-CODECS-UPDATED](https://github.com/WillyBilly06/ESP32-A2DP-SINK-WITH-CODECS-UPDATED)**：本项目集成的部分 LDAC 解码实现、LDAC / LHDC V5 适配代码及 codec 生命周期辅助代码来源于该项目。当前引入版本固定为 [提交 `45281c5`](https://github.com/WillyBilly06/ESP32-A2DP-SINK-WITH-CODECS-UPDATED/tree/45281c5212cf5e22eb1d804e75439d2ac051f7c0)，具体文件与哈希见 [引入清单](software/components/chime_codec_reference/UPSTREAM.json)。
-- **[LHDC-V5-Decoder](https://github.com/WillyBilly06/LHDC-V5-Decoder)**：引入快照中便携式 LHDC V5 解码器的上游项目，对照版本为 [提交 `cf857ce`](https://github.com/WillyBilly06/LHDC-V5-Decoder/tree/cf857ce1a1429965e161e54adbc3f293fd9ce273)。[快照记录](software/components/chime_codec_reference/vendor/native_bt/codecs/lhdcv5/source_snapshot/SOURCE.json) 区分了匹配文件与两份带工作修改的文件。
-- **freeaptx**：aptX / aptX HD 实现通过同一 ESP32 参考仓库的较早 [提交 `0d85a97`](https://github.com/WillyBilly06/ESP32-A2DP-SINK-WITH-CODECS-UPDATED/tree/0d85a975ec079d954f1bdd3e94d2fed70848c252) 引入；原作者与 LGPL-2.1-or-later 条款按源文件及 COPYING 保留，来源见 [溯源清单](software/components/chime_freeaptx/UPSTREAM.json)。
+仓库不同部分使用不同的许可证：
 
-本项目只集成参考项目中选定的 codec 相关部分，没有链接其自定义蓝牙 host、codec worker 或 renderer 来替代 Chime 现有链路。感谢上游作者与贡献者公开分享相关工作。
+- 自己写的固件和原创 DSP 工程配置：[Apache-2.0](LICENSE)。
+- 自己设计的 PCB：[CERN-OHL-P-2.0](LICENSES/CERN-OHL-P-2.0.txt)。
+- 自有文档和四份公开的 STEP / 3MF 模型：[CC BY 4.0](LICENSES/CC-BY-4.0.txt)。
 
-致谢用于说明来源，不代表全部上游内容适用同一许可证；逐项许可及授权待确认事项见 [第三方声明](THIRD_PARTY_NOTICES.md)。
+**部分引入的 LDAC 和适配代码，转发/再分发权限仍未完全确认。** 上面这些许可证不覆盖它们、其他第三方材料和项目标识。使用或重新分发前请看[第三方声明](THIRD_PARTY_NOTICES.md)与[许可范围](LICENSES/README.md)。
 
-## 许可证
+## 反馈
 
-- **自有软件与原创 DSP 工程配置贡献**：[Apache-2.0](LICENSE)。
-- **原创 PCB 设计贡献**：[CERN-OHL-P-2.0](LICENSES/CERN-OHL-P-2.0.txt)。
-- **自有公开文档与四份 STEP / 3MF 模型**：[CC-BY-4.0](LICENSES/CC-BY-4.0.txt)；不包含未发布 Creo 源文件。
-- **第三方内容**：按原许可或授权待确认状态处理，见 [第三方声明](THIRD_PARTY_NOTICES.md)。Logo / 名称 / 商标不纳入上述许可。
-
-本项目也是 LDAC / 参考适配代码的引用者，尚未确认完整授权情况；使用者应结合上游资料和自身用途自行评估。该说明不替代授权，也不补足缺失许可。完整范围见 [LICENSES/README.md](LICENSES/README.md)。
-
-## 反馈与贡献
-
-提交问题时请附上硬件版本、固件提交、ESP-IDF 版本、音源 / 手机及协商 codec、复现步骤和经过脱敏的日志。不要附带 Wi-Fi 凭据、私人录音或整份个人开发环境信息。
-
-贡献请遵循对应内容的许可范围，保留来源并确认有权提交；第三方代码、硬件文件、机械交换模型及商标不因出现在同一个仓库就自动适用同一种许可证。
+欢迎提 Issue 或建议。报问题时最好带上硬件版本、固件 commit、ESP-IDF 版本、音源/手机、协商的 codec（如果有）和能复现问题的日志。Wi-Fi 密码等私人信息记得删掉。

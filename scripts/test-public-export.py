@@ -26,12 +26,13 @@ class PublicExportTests(unittest.TestCase):
     def test_bilingual_readmes_are_linked_and_required(self):
         english = (ROOT / 'README.md').read_text(encoding='utf-8')
         chinese = (ROOT / 'README.zh-CN.md').read_text(encoding='utf-8')
-        self.assertEqual(english.splitlines()[0], 'English | [简体中文](README.zh-CN.md)')
-        self.assertEqual(chinese.splitlines()[0], '[English](README.md) | 简体中文')
-        self.assertIn('## Features', english)
-        self.assertIn('## Licensing', english)
-        self.assertIn('## 能做什么', chinese)
-        self.assertIn('## 许可证', chinese)
+        # Check the language navigation and license links, not editorial wording.
+        self.assertIn('[简体中文](README.zh-CN.md)', english.splitlines()[0])
+        self.assertIn('[English](README.md)', chinese.splitlines()[0])
+        for text in [english, chinese]:
+            self.assertIn('](LICENSE)', text)
+            self.assertIn('](THIRD_PARTY_NOTICES.md)', text)
+            self.assertIn('](LICENSES/README.md)', text)
         for name, text in [('README.md', english), ('README.zh-CN.md', chinese)]:
             for target in re.findall(r'\[[^\]]+\]\(([^)\s]+)\)', text):
                 if re.match(r'^[a-zA-Z]+:', target) or target.startswith('#'):
@@ -43,18 +44,21 @@ class PublicExportTests(unittest.TestCase):
                                         if name != 'README.zh-CN.md'])
 
     def test_upstream_projects_are_credited_in_both_readmes(self):
-        reference = json.loads((ROOT / 'software/components/chime_codec_reference/UPSTREAM.json').read_text())
-        freeaptx = json.loads((ROOT / 'software/components/chime_freeaptx/UPSTREAM.json').read_text())
-        lhdc = json.loads((ROOT / 'software/components/chime_codec_reference/vendor/native_bt/codecs/lhdcv5/source_snapshot/SOURCE.json').read_text())
-        sources = [(reference['repository'], reference['commit']),
-                   (freeaptx['repository'], freeaptx['commit']),
-                   (lhdc['upstream'], lhdc['comparison_revision'])]
+        manifests = [
+            ('software/components/chime_codec_reference/UPSTREAM.json', 'repository', 'commit'),
+            ('software/components/chime_freeaptx/UPSTREAM.json', 'repository', 'commit'),
+            ('software/components/chime_codec_reference/vendor/native_bt/codecs/lhdcv5/source_snapshot/SOURCE.json',
+             'upstream', 'comparison_revision'),
+        ]
         for name in ['README.md', 'README.zh-CN.md']:
             text = (ROOT / name).read_text(encoding='utf-8')
-            for repository, revision in sources:
-                with self.subTest(readme=name, source=repository, revision=revision):
-                    self.assertIn('](' + repository + ')', text)
-                    self.assertIn(repository + '/tree/' + revision, text)
+            for path, repository_key, revision_key in manifests:
+                manifest = json.loads((ROOT / path).read_text(encoding='utf-8'))
+                with self.subTest(readme=name, manifest=path):
+                    self.assertIn('](' + manifest[repository_key] + ')', text)
+                    # Revisions may live in the linked manifest rather than README prose.
+                    self.assertIn('](' + path + ')', text)
+                    self.assertRegex(manifest[revision_key], r'^[0-9a-f]{40}$')
             self.assertIn('WillyBilly06', text)
             self.assertIn('THIRD_PARTY_NOTICES.md', text)
 
