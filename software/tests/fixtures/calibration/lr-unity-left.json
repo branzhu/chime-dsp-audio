@@ -1,0 +1,91 @@
+{
+  "schema": "chime.accepted-voltage-calibration.v1",
+  "id": "2026-11-01-lr-unity-left-1khz",
+  "status": "user_accepted",
+  "accepted_date": "2026-11-01",
+  "evidence": "User supplied measurements and confirmed clean oscilloscope waveforms; no instrument files or supply voltage provided.",
+  "conditions": {
+    "dsp_profile": "lr-unity-v1",
+    "dsp_lr_gain": 1,
+    "amp_volume_db": -8,
+    "sample_rate_hz": 48000,
+    "channel": "L",
+    "frequency_hz": 1000,
+    "nominal_ohms": 4,
+    "nominal_ohms_basis": "4 ohms inferred from supplied V^2/P table; not measured impedance",
+    "speaker_rated_watts": 15,
+    "speaker_rating_basis": "User declaration; rating test standard unspecified",
+    "supply_voltage_measured_v": null,
+    "instrument_models": null
+  },
+  "background": {
+    "reported_rms_mv": 30,
+    "treatment": "Retained raw readings; no automatic subtraction. Quadrature explanation assumes uncorrelated components and identical measurement bandwidth."
+  },
+  "reported_fit": {
+    "intercept_db": 17.963,
+    "free_slope": 0.995,
+    "max_abs_residual_db": 0.522,
+    "min_level_dbfs": -40,
+    "max_level_dbfs": 0
+  },
+  "protection_reference": {
+    "level_dbfs": 0,
+    "output_vrms": 7.985,
+    "basis": "Measured high-level anchor; not replacement of full-range reported fit",
+    "valid_for": "L / 1000 Hz / lr-unity-v1 / amp -8dB only",
+    "limiter_applied": false
+  },
+  "measurements": [
+    {
+      "level_dbfs": -40,
+      "output_rms_mv": 84,
+      "quality": "normal"
+    },
+    {
+      "level_dbfs": -30,
+      "output_rms_mv": 248,
+      "quality": "normal"
+    },
+    {
+      "level_dbfs": -25,
+      "output_rms_mv": 438,
+      "quality": "normal"
+    },
+    {
+      "level_dbfs": -20,
+      "output_rms_mv": 774,
+      "quality": "normal"
+    },
+    {
+      "level_dbfs": -15,
+      "output_rms_mv": 1380,
+      "quality": "normal"
+    },
+    {
+      "level_dbfs": -10,
+      "output_rms_mv": 2475,
+      "quality": "normal"
+    },
+    {
+      "level_dbfs": -5,
+      "output_rms_mv": 4395,
+      "quality": "normal"
+    },
+    {
+      "level_dbfs": -4,
+      "output_rms_mv": 5036,
+      "quality": "normal"
+    },
+    {
+      "level_dbfs": -3,
+      "output_rms_mv": 5648,
+      "quality": "normal"
+    },
+    {
+      "level_dbfs": 0,
+      "output_rms_mv": 7985,
+      "quality": "normal"
+    }
+  ]
+}

@@ -1,0 +1,33 @@
+* text=auto eol=lf
+
+# Windows command files
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# Binary and CAD assets
+*.3mf binary
+*.docx binary
+*.mdat binary
+*.pdf binary
+*.png binary
+*.prt.* binary
+*.stp binary
+*.step binary
+*.epro2 binary
+# Vendor DSP project/exports are SHA256-pinned byte-for-byte by manifest.json.
+# Preserve original CRLF bytes on add/checkout; normalizing breaks fresh builds.
+/dsp/ADAU1451.ssprj -text -whitespace
+/dsp/esp32-bindings.json -text -whitespace
+/dsp/ADAU1451/ADAU145xSchematic_0/* -text -whitespace
+
+# Preserve verbatim diagnostic/vendor evidence, including original whitespace.
+/docs/validation/**/*.log -whitespace
+/docs/validation/**/*.txt -whitespace
+/docs/validation/**/official/* -whitespace
+
+# Codec imports and fixtures are SHA256-pinned; retain original bytes.
+/software/components/chime_codec_reference/vendor/** -text -whitespace
+/software/components/chime_freeaptx/freeaptx.c -text -whitespace
+/software/components/chime_freeaptx/freeaptx.h -text -whitespace
+/software/components/chime_freeaptx/COPYING -text -whitespace
+/software/tests/bluetooth/fixtures/** -text -whitespace

@@ -1,0 +1,5 @@
+set(sources)
+if(CONFIG_CHIME_BT_VENDOR_CODECS)
+    set(sources "chime_ldac.c")
+endif()
+idf_component_register(SRCS ${sources} INCLUDE_DIRS "." PRIV_REQUIRES chime_codec_reference)

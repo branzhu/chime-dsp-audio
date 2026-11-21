@@ -1,0 +1,23 @@
+{
+  "encoder_repository": "https://github.com/LingYi0110/liblhdcv5-c",
+  "encoder_commit": "699a624f4f04b6419af2f4a5ef3cc40dd39d2855",
+  "encoder_license": "Apache-2.0, unofficial independent C11 implementation, NOT Savitech official encoder",
+  "generator": "software/tests/bluetooth/generate_lhdc_fixtures.c",
+  "generator_sha256": "3cba47995fc191f8103e34cca85b0dfd5f8a936167c913b545c53d200b1bb05d",
+  "compiler": "MSVC 2022 x64 /O2 /fp:strict, test-only __builtin_bswap32->_byteswap_ulong and __builtin_memcpy->memcpy compatibility header",
+  "signal": "80 frames x 240 stereo samples PCM16; left 997Hz amplitude 6000, right 2003Hz amplitude 4000; rates 44100,48000; quality 3..8",
+  "files": {
+    "44100-q3.lhdc": "d8394eb1d89c3735d0103cff2acf73a371d046bf93a580ffb09a0644864d7a2a",
+    "44100-q4.lhdc": "7c520dbf528209485ba2952716c362585f3eb96cf53e4ca9312e182b843b9192",
+    "44100-q5.lhdc": "cc771997fd0e1831c97d29fac460b52d568b769cc0e198bf35acf51f2aa1e7f2",
+    "44100-q6.lhdc": "549a7a5d8bf1331acb2101b6a95be89fff271ad8e6562425165de1b23549f5c4",
+    "44100-q7.lhdc": "95e340dff411d6ad258f3046a7c189f7241402e72a6766f67b7944959025c2fd",
+    "44100-q8.lhdc": "6f8db971544153a5a0dd0899435d88a15b8bf9dc60d1d8816e31b538b9f4881e",
+    "48000-q3.lhdc": "fac10642fda7dea3da1a68fa5d07d3784d289ec1cdd6fd42b53ebbd70ad0d43f",
+    "48000-q4.lhdc": "35e55477d6d5ee0ad2bd2c42bb2ca959b6ccf9282f84c3b75380f0514808adb5",
+    "48000-q5.lhdc": "1215c942b8a40ca3a94a8233e0fd0fa42a11c6cbc5c07a5555d54f07b490580a",
+    "48000-q6.lhdc": "63bf98fc600e0562f648114232716038b6bc3fe27cf5820d608ae9112af0197c",
+    "48000-q7.lhdc": "5451ed344824d3227dc75cf2d58489dccf9854cb5102c87fb5cb19ce077c376f",
+    "48000-q8.lhdc": "2fe6bf45d807bbedc534ca2b0e1ef2daa6b394949ac41c469df3e1ac4d8211c2"
+  }
+}

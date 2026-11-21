@@ -1,0 +1,103 @@
+{
+  "schema": 1,
+  "profile": "board-bound-v4",
+  "project": "dsp/ADAU1451.ssprj",
+  "compiler_dir": "dsp/ADAU1451/ADAU145xSchematic_0",
+  "schematic_uid": "ADAU145xSchematic_0",
+  "processor_uid": "ADAU1451_0",
+  "core_uid": "ADAU145xCore_0",
+  "sample_rate_hz": 48000,
+  "input": {
+    "uid": "ASRCInput_0",
+    "pins": [
+      "Ch0_out",
+      "Ch1_out"
+    ]
+  },
+  "outputs": {
+    "L": {
+      "uid": "Gain_0",
+      "parameter": "Gain_0.Gain",
+      "channels": [
+        16
+      ]
+    },
+    "R": {
+      "uid": "Gain_1",
+      "parameter": "Gain_1.Gain",
+      "channels": [
+        17
+      ]
+    },
+    "SUB": {
+      "uid": "Gain_2",
+      "parameter": "Gain_2.Gain",
+      "channels": [
+        32,
+        33
+      ]
+    }
+  },
+  "optional_live_parameters": [
+    "MixerLinear2x1_0.vol_00_00",
+    "MixerLinear2x1_0.vol_00_01"
+  ],
+  "safeload_parameters": {
+    "data": "__SafeLoad_Module__.data_SafeLoad",
+    "address": "__SafeLoad_Module__.address_SafeLoad",
+    "count": "__SafeLoad_Module__.num_SafeLoad"
+  },
+  "board_properties": {
+    "ProcessorName": "ADAU1451",
+    "SlavePort": "I2C",
+    "I2CSlaveAddress": "0x70",
+    "MasterControlPortEnable": false,
+    "SPORTTxPinLocation": "Right",
+    "SPORTRxPinLocation": "Right",
+    "CLK_GEN1_M_reg_CLOCKGEN1_M": 6,
+    "CLK_GEN1_N_reg_CLOCKGEN1_N": 1,
+    "START_PULSE_reg_START_PULSE": "Base_Fs (48 kHz for 48 kHz base sample rate)",
+    "ASRC_INPUT0_reg_ASRC_SOURCE": "From serial input",
+    "ASRC_INPUT0_reg_ASRC_SIN_CHANNEL": "Serial input CH0/1",
+    "SOUT_SOURCE8_reg_SOUT_SOURCE": "From corresponding DSP core output channels",
+    "SOUT_SOURCE8_reg_SOUT_ASRC_SELECT": "ASRC 0",
+    "SOUT_SOURCE16_reg_SOUT_SOURCE": "From corresponding DSP core output channels",
+    "SOUT_SOURCE16_reg_SOUT_ASRC_SELECT": "ASRC 0",
+    "SERIAL_BYTE_1_0_reg_TDM_MODE": "2 channels, 32 bit/channel",
+    "SERIAL_BYTE_1_0_reg_DATA_FMT": "I2S - BCLK delay by 1",
+    "SERIAL_BYTE_1_0_reg_WORD_LEN": "24 bits",
+    "SERIAL_BYTE_1_0_reg_BCLK_POL": "Negative polarity",
+    "SERIAL_BYTE_1_0_reg_LRCLK_POL": "Negative polarity",
+    "SERIAL_BYTE_1_0_reg_LRCLK_MODE": "50/50 duty cycle clock",
+    "SERIAL_BYTE_1_0_reg_BCLK_SRC": "BCLK is master",
+    "SERIAL_BYTE_1_0_reg_LRCLK_SRC": "LRCLK is master",
+    "SERIAL_BYTE_1_1_reg_FS": "Fs",
+    "SERIAL_BYTE_1_1_reg_CLK_DOMAIN": "Clock generator 1 (48 kHz (FS) generator)",
+    "SERIAL_BYTE_1_1_reg_TRISTATE": "Drive every output channel",
+    "SERIAL_BYTE_2_0_reg_TDM_MODE": "2 channels, 32 bit/channel",
+    "SERIAL_BYTE_2_0_reg_DATA_FMT": "I2S - BCLK delay by 1",
+    "SERIAL_BYTE_2_0_reg_WORD_LEN": "24 bits",
+    "SERIAL_BYTE_2_0_reg_BCLK_POL": "Negative polarity",
+    "SERIAL_BYTE_2_0_reg_LRCLK_POL": "Negative polarity",
+    "SERIAL_BYTE_2_0_reg_LRCLK_MODE": "50/50 duty cycle clock",
+    "SERIAL_BYTE_2_0_reg_BCLK_SRC": "BCLK is master",
+    "SERIAL_BYTE_2_0_reg_LRCLK_SRC": "LRCLK is master",
+    "SERIAL_BYTE_2_1_reg_FS": "Fs",
+    "SERIAL_BYTE_2_1_reg_CLK_DOMAIN": "Clock generator 1 (48 kHz (FS) generator)",
+    "SERIAL_BYTE_2_1_reg_TRISTATE": "Drive every output channel",
+    "SERIAL_BYTE_4_0_reg_TDM_MODE": "2 channels, 32 bit/channel",
+    "SERIAL_BYTE_4_0_reg_DATA_FMT": "I2S - BCLK delay by 1",
+    "SERIAL_BYTE_4_0_reg_WORD_LEN": "24 bits",
+    "SERIAL_BYTE_4_0_reg_BCLK_POL": "Negative polarity",
+    "SERIAL_BYTE_4_0_reg_LRCLK_POL": "Negative polarity",
+    "SERIAL_BYTE_4_0_reg_LRCLK_MODE": "50/50 duty cycle clock",
+    "SERIAL_BYTE_4_0_reg_BCLK_SRC": "Slave from CLK domain 0",
+    "SERIAL_BYTE_4_0_reg_LRCLK_SRC": "Slave from CLK domain 0",
+    "SERIAL_BYTE_4_1_reg_FS": "Fs",
+    "SERIAL_BYTE_4_1_reg_CLK_DOMAIN": "Clock generator 1 (48 kHz (FS) generator)",
+    "SERIAL_BYTE_4_1_reg_TRISTATE": "Drive every output channel",
+    "PLL_CTRL0_reg_PLL_FBDIVIDER": 96,
+    "PLL_CTRL1_reg_PLL_DIV": "Divide by 4",
+    "PLL_CLK_SRC_reg_CLKSRC": "PLL clock"
+  }
+}

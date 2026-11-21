@@ -1,0 +1,6 @@
+# Bluetooth SBC + USB + Web/SS bridge. Keep original data offsets and factory
+# start, enlarge ONLY factory. No OTA or automatic flash erase/migration.
+# Name,   Type, SubType, Offset,  Size, Flags
+nvs,      data, nvs,     0x9000,   0x6000,
+phy_init, data, phy,     0xf000,   0x1000,
+factory,  app,  factory, 0x10000,  3M,

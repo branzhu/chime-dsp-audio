@@ -1,0 +1,16 @@
+{
+  "encoder_repository": "https://android.googlesource.com/platform/external/libldac",
+  "encoder_commit": "e8ff0f96f26b84b47711c549e0d60baa425cd70e",
+  "encoder_license": "Apache-2.0, test-only encoder not linked into firmware",
+  "generator": "software/tests/bluetooth/generate_ldac_stress_fixtures.c",
+  "content": "800 PCM16 stereo blocks at each rate/quality; deterministic xorshift noise, silence, changing two-tone, quiet noise; four encoder flush calls. 801 frames per stream. Synthetic, no third-party recordings.",
+  "quality": "0 HQ, 1 SQ, 2 MQ; raw frames, no RTP/payload header",
+  "files": {
+    "44100-0.ldac": "d1faaf7bb4a4df570a00b90772ccb15ea707bc86276bddf8cbf52e49f36ed518",
+    "44100-1.ldac": "2294ad4cb3cd63d17d155db8e1ed05b0f9f0ab9d120c3888ae55c82cb3643ddd",
+    "44100-2.ldac": "98d979f9be5ee717d08be180e8660dcea32c09413f504c91b1a1017065498c0c",
+    "48000-0.ldac": "ea26cd7ba5008c18cffdaed157a0ea962f70cdc706481d90adee9d1ce8a78820",
+    "48000-1.ldac": "1d38af9305809f88b6e06416f660106e3682c8a02031b4671a1ed1bb3650c7ba",
+    "48000-2.ldac": "d42760429c0b6e5897cf2262e2ab5e75c1a46391cd6f37fe72a6db89ee292f78"
+  }
+}

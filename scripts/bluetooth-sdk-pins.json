@@ -1,0 +1,7 @@
+{
+  "api/include/api/esp_a2dp_api.h": "4d071dddf330c6b8135964d08babf1f4b48f8689e4a69e941136c02cde097813",
+  "btc/profile/std/a2dp/btc_av.c": "b49b3667a13827b5663cd5eefbff2e594588e48ad8a42a332962cbd3018f8c9e",
+  "btc/profile/std/a2dp/bta_av_co.c": "5229472dfb727e116eeafd1a3b90269fac31fceac4fceabcbc1322d50990a495",
+  "btc/profile/std/a2dp/btc_a2dp_sink_ext_coedc.c": "5c65bfedd2edae8fe8a8ecf2d4fdbaee9241ba05b9315a6259f5525b76333ef2",
+  "stack/avdt/avdt_scb_act.c": "cd0bde3e48c3cf6ca8e5c7fbd00967e6f47f4d71cd873547b7ceb4cc5302d41b"
+}

@@ -1,0 +1,40 @@
+menu "Chime Bluetooth"
+config CHIME_BT_DELAY_EXTRA_MS
+    int "Calibrated receiver delay correction (ms)"
+    range 0 500
+    default 0
+    help
+        Added to observed application residence/PCM queue delay and nominal
+        4x128-frame I2S DMA (10.667ms). Default 0 is UNCALIBRATED, not zero
+        actual codec/protocol-stack/DSP latency. Set only after AV measurement.
+        Reports do not include phone encoder/transmit latency. Internal SBC
+        cannot observe raw packet residence and has less complete estimates.
+
+config CHIME_BT_VENDOR_CODECS
+    bool "Experimental aptX / aptX HD / Android Opus / LDAC sink"
+    depends on BT_A2DP_USE_EXTERNAL_CODEC
+    default y
+    help
+        Project-local hash-pinned stack replacements; six SEPs (seven with LHDC V5). Pinned WillyBilly06 reference LDAC decoder, 44.1/48k stereo PCM16. No aptX LL.
+        libfreeaptx is LGPL-2.1-or-later. Review redistribution requirements.
+        Disable for the unpatched SBC/AAC recovery build.
+config CHIME_BT_LHDC_V5
+    bool "Experimental reference LHDC V5 decoder (not V2/V3)"
+    depends on CHIME_BT_VENDOR_CODECS
+    default y
+    help
+        Adds a seventh sink SEP. 44.1/48k stereo PCM16, 256..500 kbps,
+        V5 version 1, 5ms. No lossless, metadata, AR or low-latency mode.
+        Pinned WillyBilly06 native port and portable source snapshot.
+        NOT a licensed/certified LHDC product; hardware validation required.
+        Disable this option for a six-codec build without LHDC.
+endmenu
+
+menu "Chime physical controls"
+config CHIME_ENCODER_REVERSE
+    bool "Reverse side encoder direction"
+    default n
+    help
+        Provisional A/B direction. Enable if user-relative forward rolling
+        decreases volume on the assembled speaker. No hardware rewiring needed.
+endmenu

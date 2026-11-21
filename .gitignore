@@ -1,0 +1,74 @@
+# Operating system files
+.DS_Store
+Thumbs.db
+Desktop.ini
+~$*
+
+# Editors and local settings
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Environment and local secrets
+.env
+.env.*
+!.env.example
+
+# Generic temporary files and generated output
+tmp/
+out/
+.cache/
+*.tmp
+*.bak
+*.orig
+
+# Python bytecode/cache (keep validation logs and pinned DSP outputs)
+__pycache__/
+*.py[cod]
+
+# Node.js tooling
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# ESP-IDF build output
+software/build/
+software/build-bridge/
+software/sdkconfig.old
+
+# Creo Parametric session and transient output
+# Creo native sources stay private; public exports keep STEP / 3MF only.
+# Already tracked sources remain in private history; use the public exporter.
+**/trail.txt*
+**/std.out*
+**/*__out.log.*
+**/creo_*.log*
+
+# Local Java / J-Link build output
+**/build/classes/
+**/build/generated/
+**/dist/
+*.class
+*.jar
+
+# Keep this file itself tracked
+!.gitignore
+# ESP-IDF Component Manager downloads (versions pinned in dependencies.lock)
+software/managed_components/
+
+# MSVC host-test compiler databases
+*.pdb
+
+# Pinned upstream build metadata is source, not a local merge backup.
+!/software/components/chime_codec_reference/vendor/esp-idf/components/bt/host/bluedroid/external/libldac-dec/CMakeLists.orig
+
+# Private mechanical authoring sources (including Creo numbered revisions)
+/mechanical/**/*.prt
+/mechanical/**/*.prt.*
+/mechanical/**/*.asm
+/mechanical/**/*.asm.*
+/mechanical/**/*.drw
+/mechanical/**/*.drw.*

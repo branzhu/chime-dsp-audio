@@ -1,0 +1,16 @@
+{
+  "encoder_repository": "https://android.googlesource.com/platform/external/libldac",
+  "encoder_commit": "e8ff0f96f26b84b47711c549e0d60baa425cd70e",
+  "encoder_license": "Apache-2.0, encoder source not linked into firmware",
+  "generator": "software/tests/bluetooth/generate_ldac_fixtures.c",
+  "content": "Synthetic self-generated dual mono tones (997Hz at amplitude6000; 2003Hz at amplitude4000), 72 blocks of128 stereo PCM16 samples, four flush calls. No third-party recordings.",
+  "quality": "0 HQ, 1 SQ, 2 MQ; full frames including three-byte header, no RTP or payload header",
+  "files": {
+    "44100-0.ldac": "0a037cb2d6e5e01da5191a9964e4754f932baec2c18c966d7c37ebc77864d0cf",
+    "44100-1.ldac": "5b78e7b798cfff2f4ed945a9631f157773237994dd853bdf44c692dfc89b2f73",
+    "44100-2.ldac": "97b479d06357e0f4c081ce9f25ec0ca659b8e79a1c5b8fcdaad254fd7b0fd740",
+    "48000-0.ldac": "e104baa4f9500c23d59d15c178b06be1c4fa0dca0b3f520e0bf51df1d823a7d6",
+    "48000-1.ldac": "e2ff45f3e809bf409a3b9ef256688c5ca2f684da4b38eaf52c519008996eb9d5",
+    "48000-2.ldac": "ef45c02130d3d850bcc028f821cbb9e1e33666148c8cd408dfc3a1388c5255d6"
+  }
+}

@@ -1,0 +1,13 @@
+# Official Espressif managed dependencies, exact versions locked in dependencies.lock.
+dependencies:
+  espressif/mdns:
+    version: "1.8.0"
+  espressif/cjson:
+    version: "1.7.19"
+  espressif/esp_tinyusb:
+    version: "2.4.0"
+  espressif/esp_audio_codec:
+    version: "2.6.2"
+  # Preserve the USB stack validated with SBC; no unrelated transitive upgrade.
+  espressif/tinyusb:
+    version: "0.21.0~2"

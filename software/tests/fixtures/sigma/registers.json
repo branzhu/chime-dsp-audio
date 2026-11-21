@@ -1,0 +1,2658 @@
+{
+  "source": "Analog Devices ADAU1452/ADAU1451/ADAU1450 Rev. D register overview",
+  "url": "https://www.analog.com/media/en/technical-documentation/data-sheets/ADAU1452_1451_1450.pdf",
+  "scope": "Register addresses, identifiers and access modes only; no datasheet prose or PDF.",
+  "source_text_sha256": "1b97d1181267bd58c89c6932eb58f0d4ef3b6429d88360f636018696e3bc6c55",
+  "registers": [
+    {
+      "address": "f000",
+      "name": "PLL_CTRL0",
+      "access": "RW"
+    },
+    {
+      "address": "f001",
+      "name": "PLL_CTRL1",
+      "access": "RW"
+    },
+    {
+      "address": "f002",
+      "name": "PLL_CLK_SRC",
+      "access": "RW"
+    },
+    {
+      "address": "f003",
+      "name": "PLL_ENABLE",
+      "access": "RW"
+    },
+    {
+      "address": "f004",
+      "name": "PLL_LOCK",
+      "access": "R"
+    },
+    {
+      "address": "f005",
+      "name": "MCLK_OUT",
+      "access": "RW"
+    },
+    {
+      "address": "f006",
+      "name": "PLL_WATCHDOG",
+      "access": "RW"
+    },
+    {
+      "address": "f020",
+      "name": "CLK_GEN1_M",
+      "access": "RW"
+    },
+    {
+      "address": "f021",
+      "name": "CLK_GEN1_N",
+      "access": "RW"
+    },
+    {
+      "address": "f022",
+      "name": "CLK_GEN2_M",
+      "access": "RW"
+    },
+    {
+      "address": "f023",
+      "name": "CLK_GEN2_N",
+      "access": "RW"
+    },
+    {
+      "address": "f024",
+      "name": "CLK_GEN3_M",
+      "access": "RW"
+    },
+    {
+      "address": "f025",
+      "name": "CLK_GEN3_N",
+      "access": "RW"
+    },
+    {
+      "address": "f026",
+      "name": "CLK_GEN3_SRC",
+      "access": "RW"
+    },
+    {
+      "address": "f027",
+      "name": "CLK_GEN3_LOCK",
+      "access": "R"
+    },
+    {
+      "address": "f050",
+      "name": "POWER_ENABLE0",
+      "access": "RW"
+    },
+    {
+      "address": "f051",
+      "name": "POWER_ENABLE1",
+      "access": "RW"
+    },
+    {
+      "address": "f100",
+      "name": "ASRC_INPUT0",
+      "access": "RW"
+    },
+    {
+      "address": "f101",
+      "name": "ASRC_INPUT1",
+      "access": "RW"
+    },
+    {
+      "address": "f102",
+      "name": "ASRC_INPUT2",
+      "access": "RW"
+    },
+    {
+      "address": "f103",
+      "name": "ASRC_INPUT3",
+      "access": "RW"
+    },
+    {
+      "address": "f104",
+      "name": "ASRC_INPUT4",
+      "access": "RW"
+    },
+    {
+      "address": "f105",
+      "name": "ASRC_INPUT5",
+      "access": "RW"
+    },
+    {
+      "address": "f106",
+      "name": "ASRC_INPUT6",
+      "access": "RW"
+    },
+    {
+      "address": "f107",
+      "name": "ASRC_INPUT7",
+      "access": "RW"
+    },
+    {
+      "address": "f140",
+      "name": "ASRC_OUT_RATE0",
+      "access": "RW"
+    },
+    {
+      "address": "f141",
+      "name": "ASRC_OUT_RATE1",
+      "access": "RW"
+    },
+    {
+      "address": "f142",
+      "name": "ASRC_OUT_RATE2",
+      "access": "RW"
+    },
+    {
+      "address": "f143",
+      "name": "ASRC_OUT_RATE3",
+      "access": "RW"
+    },
+    {
+      "address": "f144",
+      "name": "ASRC_OUT_RATE4",
+      "access": "RW"
+    },
+    {
+      "address": "f145",
+      "name": "ASRC_OUT_RATE5",
+      "access": "RW"
+    },
+    {
+      "address": "f146",
+      "name": "ASRC_OUT_RATE6",
+      "access": "RW"
+    },
+    {
+      "address": "f147",
+      "name": "ASRC_OUT_RATE7",
+      "access": "RW"
+    },
+    {
+      "address": "f180",
+      "name": "SOUT_SOURCE0",
+      "access": "RW"
+    },
+    {
+      "address": "f181",
+      "name": "SOUT_SOURCE1",
+      "access": "RW"
+    },
+    {
+      "address": "f182",
+      "name": "SOUT_SOURCE2",
+      "access": "RW"
+    },
+    {
+      "address": "f183",
+      "name": "SOUT_SOURCE3",
+      "access": "RW"
+    },
+    {
+      "address": "f184",
+      "name": "SOUT_SOURCE4",
+      "access": "RW"
+    },
+    {
+      "address": "f185",
+      "name": "SOUT_SOURCE5",
+      "access": "RW"
+    },
+    {
+      "address": "f186",
+      "name": "SOUT_SOURCE6",
+      "access": "RW"
+    },
+    {
+      "address": "f187",
+      "name": "SOUT_SOURCE7",
+      "access": "RW"
+    },
+    {
+      "address": "f188",
+      "name": "SOUT_SOURCE8",
+      "access": "RW"
+    },
+    {
+      "address": "f189",
+      "name": "SOUT_SOURCE9",
+      "access": "RW"
+    },
+    {
+      "address": "f18a",
+      "name": "SOUT_SOURCE10",
+      "access": "RW"
+    },
+    {
+      "address": "f18b",
+      "name": "SOUT_SOURCE11",
+      "access": "RW"
+    },
+    {
+      "address": "f18c",
+      "name": "SOUT_SOURCE12",
+      "access": "RW"
+    },
+    {
+      "address": "f18d",
+      "name": "SOUT_SOURCE13",
+      "access": "RW"
+    },
+    {
+      "address": "f18e",
+      "name": "SOUT_SOURCE14",
+      "access": "RW"
+    },
+    {
+      "address": "f18f",
+      "name": "SOUT_SOURCE15",
+      "access": "RW"
+    },
+    {
+      "address": "f190",
+      "name": "SOUT_SOURCE16",
+      "access": "RW"
+    },
+    {
+      "address": "f191",
+      "name": "SOUT_SOURCE17",
+      "access": "RW"
+    },
+    {
+      "address": "f192",
+      "name": "SOUT_SOURCE18",
+      "access": "RW"
+    },
+    {
+      "address": "f193",
+      "name": "SOUT_SOURCE19",
+      "access": "RW"
+    },
+    {
+      "address": "f194",
+      "name": "SOUT_SOURCE20",
+      "access": "RW"
+    },
+    {
+      "address": "f195",
+      "name": "SOUT_SOURCE21",
+      "access": "RW"
+    },
+    {
+      "address": "f196",
+      "name": "SOUT_SOURCE22",
+      "access": "RW"
+    },
+    {
+      "address": "f197",
+      "name": "SOUT_SOURCE23",
+      "access": "RW"
+    },
+    {
+      "address": "f1c0",
+      "name": "SPDIFTX_INPUT",
+      "access": "RW"
+    },
+    {
+      "address": "f200",
+      "name": "SERIAL_BYTE_0_0",
+      "access": "RW"
+    },
+    {
+      "address": "f201",
+      "name": "SERIAL_BYTE_0_1",
+      "access": "RW"
+    },
+    {
+      "address": "f204",
+      "name": "SERIAL_BYTE_1_0",
+      "access": "RW"
+    },
+    {
+      "address": "f205",
+      "name": "SERIAL_BYTE_1_1",
+      "access": "RW"
+    },
+    {
+      "address": "f208",
+      "name": "SERIAL_BYTE_2_0",
+      "access": "RW"
+    },
+    {
+      "address": "f209",
+      "name": "SERIAL_BYTE_2_1",
+      "access": "RW"
+    },
+    {
+      "address": "f20c",
+      "name": "SERIAL_BYTE_3_0",
+      "access": "RW"
+    },
+    {
+      "address": "f20d",
+      "name": "SERIAL_BYTE_3_1",
+      "access": "RW"
+    },
+    {
+      "address": "f210",
+      "name": "SERIAL_BYTE_4_0",
+      "access": "RW"
+    },
+    {
+      "address": "f211",
+      "name": "SERIAL_BYTE_4_1",
+      "access": "RW"
+    },
+    {
+      "address": "f214",
+      "name": "SERIAL_BYTE_5_0",
+      "access": "RW"
+    },
+    {
+      "address": "f215",
+      "name": "SERIAL_BYTE_5_1",
+      "access": "RW"
+    },
+    {
+      "address": "f218",
+      "name": "SERIAL_BYTE_6_0",
+      "access": "RW"
+    },
+    {
+      "address": "f219",
+      "name": "SERIAL_BYTE_6_1",
+      "access": "RW"
+    },
+    {
+      "address": "f21c",
+      "name": "SERIAL_BYTE_7_0",
+      "access": "RW"
+    },
+    {
+      "address": "f21d",
+      "name": "SERIAL_BYTE_7_1",
+      "access": "RW"
+    },
+    {
+      "address": "f300",
+      "name": "FTDM_IN0",
+      "access": "RW"
+    },
+    {
+      "address": "f301",
+      "name": "FTDM_IN1",
+      "access": "RW"
+    },
+    {
+      "address": "f302",
+      "name": "FTDM_IN2",
+      "access": "RW"
+    },
+    {
+      "address": "f303",
+      "name": "FTDM_IN3",
+      "access": "RW"
+    },
+    {
+      "address": "f304",
+      "name": "FTDM_IN4",
+      "access": "RW"
+    },
+    {
+      "address": "f305",
+      "name": "FTDM_IN5",
+      "access": "RW"
+    },
+    {
+      "address": "f306",
+      "name": "FTDM_IN6",
+      "access": "RW"
+    },
+    {
+      "address": "f307",
+      "name": "FTDM_IN7",
+      "access": "RW"
+    },
+    {
+      "address": "f308",
+      "name": "FTDM_IN8",
+      "access": "RW"
+    },
+    {
+      "address": "f309",
+      "name": "FTDM_IN9",
+      "access": "RW"
+    },
+    {
+      "address": "f30a",
+      "name": "FTDM_IN10",
+      "access": "RW"
+    },
+    {
+      "address": "f30b",
+      "name": "FTDM_IN11",
+      "access": "RW"
+    },
+    {
+      "address": "f30c",
+      "name": "FTDM_IN12",
+      "access": "RW"
+    },
+    {
+      "address": "f30d",
+      "name": "FTDM_IN13",
+      "access": "RW"
+    },
+    {
+      "address": "f30e",
+      "name": "FTDM_IN14",
+      "access": "RW"
+    },
+    {
+      "address": "f30f",
+      "name": "FTDM_IN15",
+      "access": "RW"
+    },
+    {
+      "address": "f310",
+      "name": "FTDM_IN16",
+      "access": "RW"
+    },
+    {
+      "address": "f311",
+      "name": "FTDM_IN17",
+      "access": "RW"
+    },
+    {
+      "address": "f312",
+      "name": "FTDM_IN18",
+      "access": "RW"
+    },
+    {
+      "address": "f313",
+      "name": "FTDM_IN19",
+      "access": "RW"
+    },
+    {
+      "address": "f314",
+      "name": "FTDM_IN20",
+      "access": "RW"
+    },
+    {
+      "address": "f315",
+      "name": "FTDM_IN21",
+      "access": "RW"
+    },
+    {
+      "address": "f316",
+      "name": "FTDM_IN22",
+      "access": "RW"
+    },
+    {
+      "address": "f317",
+      "name": "FTDM_IN23",
+      "access": "RW"
+    },
+    {
+      "address": "f318",
+      "name": "FTDM_IN24",
+      "access": "RW"
+    },
+    {
+      "address": "f319",
+      "name": "FTDM_IN25",
+      "access": "RW"
+    },
+    {
+      "address": "f31a",
+      "name": "FTDM_IN26",
+      "access": "RW"
+    },
+    {
+      "address": "f31b",
+      "name": "FTDM_IN27",
+      "access": "RW"
+    },
+    {
+      "address": "f31c",
+      "name": "FTDM_IN28",
+      "access": "RW"
+    },
+    {
+      "address": "f31d",
+      "name": "FTDM_IN29",
+      "access": "RW"
+    },
+    {
+      "address": "f31e",
+      "name": "FTDM_IN30",
+      "access": "RW"
+    },
+    {
+      "address": "f31f",
+      "name": "FTDM_IN31",
+      "access": "RW"
+    },
+    {
+      "address": "f320",
+      "name": "FTDM_IN32",
+      "access": "RW"
+    },
+    {
+      "address": "f321",
+      "name": "FTDM_IN33",
+      "access": "RW"
+    },
+    {
+      "address": "f322",
+      "name": "FTDM_IN34",
+      "access": "RW"
+    },
+    {
+      "address": "f323",
+      "name": "FTDM_IN35",
+      "access": "RW"
+    },
+    {
+      "address": "f324",
+      "name": "FTDM_IN36",
+      "access": "RW"
+    },
+    {
+      "address": "f325",
+      "name": "FTDM_IN37",
+      "access": "RW"
+    },
+    {
+      "address": "f326",
+      "name": "FTDM_IN38",
+      "access": "RW"
+    },
+    {
+      "address": "f327",
+      "name": "FTDM_IN39",
+      "access": "RW"
+    },
+    {
+      "address": "f328",
+      "name": "FTDM_IN40",
+      "access": "RW"
+    },
+    {
+      "address": "f329",
+      "name": "FTDM_IN41",
+      "access": "RW"
+    },
+    {
+      "address": "f32a",
+      "name": "FTDM_IN42",
+      "access": "RW"
+    },
+    {
+      "address": "f32b",
+      "name": "FTDM_IN43",
+      "access": "RW"
+    },
+    {
+      "address": "f32c",
+      "name": "FTDM_IN44",
+      "access": "RW"
+    },
+    {
+      "address": "f32d",
+      "name": "FTDM_IN45",
+      "access": "RW"
+    },
+    {
+      "address": "f32e",
+      "name": "FTDM_IN46",
+      "access": "RW"
+    },
+    {
+      "address": "f32f",
+      "name": "FTDM_IN47",
+      "access": "RW"
+    },
+    {
+      "address": "f330",
+      "name": "FTDM_IN48",
+      "access": "RW"
+    },
+    {
+      "address": "f331",
+      "name": "FTDM_IN49",
+      "access": "RW"
+    },
+    {
+      "address": "f332",
+      "name": "FTDM_IN50",
+      "access": "RW"
+    },
+    {
+      "address": "f333",
+      "name": "FTDM_IN51",
+      "access": "RW"
+    },
+    {
+      "address": "f334",
+      "name": "FTDM_IN52",
+      "access": "RW"
+    },
+    {
+      "address": "f335",
+      "name": "FTDM_IN53",
+      "access": "RW"
+    },
+    {
+      "address": "f336",
+      "name": "FTDM_IN54",
+      "access": "RW"
+    },
+    {
+      "address": "f337",
+      "name": "FTDM_IN55",
+      "access": "RW"
+    },
+    {
+      "address": "f338",
+      "name": "FTDM_IN56",
+      "access": "RW"
+    },
+    {
+      "address": "f339",
+      "name": "FTDM_IN57",
+      "access": "RW"
+    },
+    {
+      "address": "f33a",
+      "name": "FTDM_IN58",
+      "access": "RW"
+    },
+    {
+      "address": "f33b",
+      "name": "FTDM_IN59",
+      "access": "RW"
+    },
+    {
+      "address": "f33c",
+      "name": "FTDM_IN60",
+      "access": "RW"
+    },
+    {
+      "address": "f33d",
+      "name": "FTDM_IN61",
+      "access": "RW"
+    },
+    {
+      "address": "f33e",
+      "name": "FTDM_IN62",
+      "access": "RW"
+    },
+    {
+      "address": "f33f",
+      "name": "FTDM_IN63",
+      "access": "RW"
+    },
+    {
+      "address": "f380",
+      "name": "FTDM_OUT0",
+      "access": "RW"
+    },
+    {
+      "address": "f381",
+      "name": "FTDM_OUT1",
+      "access": "RW"
+    },
+    {
+      "address": "f382",
+      "name": "FTDM_OUT2",
+      "access": "RW"
+    },
+    {
+      "address": "f383",
+      "name": "FTDM_OUT3",
+      "access": "RW"
+    },
+    {
+      "address": "f384",
+      "name": "FTDM_OUT4",
+      "access": "RW"
+    },
+    {
+      "address": "f385",
+      "name": "FTDM_OUT5",
+      "access": "RW"
+    },
+    {
+      "address": "f386",
+      "name": "FTDM_OUT6",
+      "access": "RW"
+    },
+    {
+      "address": "f387",
+      "name": "FTDM_OUT7",
+      "access": "RW"
+    },
+    {
+      "address": "f388",
+      "name": "FTDM_OUT8",
+      "access": "RW"
+    },
+    {
+      "address": "f389",
+      "name": "FTDM_OUT9",
+      "access": "RW"
+    },
+    {
+      "address": "f38a",
+      "name": "FTDM_OUT10",
+      "access": "RW"
+    },
+    {
+      "address": "f38b",
+      "name": "FTDM_OUT11",
+      "access": "RW"
+    },
+    {
+      "address": "f38c",
+      "name": "FTDM_OUT12",
+      "access": "RW"
+    },
+    {
+      "address": "f38d",
+      "name": "FTDM_OUT13",
+      "access": "RW"
+    },
+    {
+      "address": "f38e",
+      "name": "FTDM_OUT14",
+      "access": "RW"
+    },
+    {
+      "address": "f38f",
+      "name": "FTDM_OUT15",
+      "access": "RW"
+    },
+    {
+      "address": "f390",
+      "name": "FTDM_OUT16",
+      "access": "RW"
+    },
+    {
+      "address": "f391",
+      "name": "FTDM_OUT17",
+      "access": "RW"
+    },
+    {
+      "address": "f392",
+      "name": "FTDM_OUT18",
+      "access": "RW"
+    },
+    {
+      "address": "f393",
+      "name": "FTDM_OUT19",
+      "access": "RW"
+    },
+    {
+      "address": "f394",
+      "name": "FTDM_OUT20",
+      "access": "RW"
+    },
+    {
+      "address": "f395",
+      "name": "FTDM_OUT21",
+      "access": "RW"
+    },
+    {
+      "address": "f396",
+      "name": "FTDM_OUT22",
+      "access": "RW"
+    },
+    {
+      "address": "f397",
+      "name": "FTDM_OUT23",
+      "access": "RW"
+    },
+    {
+      "address": "f398",
+      "name": "FTDM_OUT24",
+      "access": "RW"
+    },
+    {
+      "address": "f399",
+      "name": "FTDM_OUT25",
+      "access": "RW"
+    },
+    {
+      "address": "f39a",
+      "name": "FTDM_OUT26",
+      "access": "RW"
+    },
+    {
+      "address": "f39b",
+      "name": "FTDM_OUT27",
+      "access": "RW"
+    },
+    {
+      "address": "f39c",
+      "name": "FTDM_OUT28",
+      "access": "RW"
+    },
+    {
+      "address": "f39d",
+      "name": "FTDM_OUT29",
+      "access": "RW"
+    },
+    {
+      "address": "f39e",
+      "name": "FTDM_OUT30",
+      "access": "RW"
+    },
+    {
+      "address": "f39f",
+      "name": "FTDM_OUT31",
+      "access": "RW"
+    },
+    {
+      "address": "f3a0",
+      "name": "FTDM_OUT32",
+      "access": "RW"
+    },
+    {
+      "address": "f3a1",
+      "name": "FTDM_OUT33",
+      "access": "RW"
+    },
+    {
+      "address": "f3a2",
+      "name": "FTDM_OUT34",
+      "access": "RW"
+    },
+    {
+      "address": "f3a3",
+      "name": "FTDM_OUT35",
+      "access": "RW"
+    },
+    {
+      "address": "f3a4",
+      "name": "FTDM_OUT36",
+      "access": "RW"
+    },
+    {
+      "address": "f3a5",
+      "name": "FTDM_OUT37",
+      "access": "RW"
+    },
+    {
+      "address": "f3a6",
+      "name": "FTDM_OUT38",
+      "access": "RW"
+    },
+    {
+      "address": "f3a7",
+      "name": "FTDM_OUT39",
+      "access": "RW"
+    },
+    {
+      "address": "f3a8",
+      "name": "FTDM_OUT40",
+      "access": "RW"
+    },
+    {
+      "address": "f3a9",
+      "name": "FTDM_OUT41",
+      "access": "RW"
+    },
+    {
+      "address": "f3aa",
+      "name": "FTDM_OUT42",
+      "access": "RW"
+    },
+    {
+      "address": "f3ab",
+      "name": "FTDM_OUT43",
+      "access": "RW"
+    },
+    {
+      "address": "f3ac",
+      "name": "FTDM_OUT44",
+      "access": "RW"
+    },
+    {
+      "address": "f3ad",
+      "name": "FTDM_OUT45",
+      "access": "RW"
+    },
+    {
+      "address": "f3ae",
+      "name": "FTDM_OUT46",
+      "access": "RW"
+    },
+    {
+      "address": "f3af",
+      "name": "FTDM_OUT47",
+      "access": "RW"
+    },
+    {
+      "address": "f3b0",
+      "name": "FTDM_OUT48",
+      "access": "RW"
+    },
+    {
+      "address": "f3b1",
+      "name": "FTDM_OUT49",
+      "access": "RW"
+    },
+    {
+      "address": "f3b2",
+      "name": "FTDM_OUT50",
+      "access": "RW"
+    },
+    {
+      "address": "f3b3",
+      "name": "FTDM_OUT51",
+      "access": "RW"
+    },
+    {
+      "address": "f3b4",
+      "name": "FTDM_OUT52",
+      "access": "RW"
+    },
+    {
+      "address": "f3b5",
+      "name": "FTDM_OUT53",
+      "access": "RW"
+    },
+    {
+      "address": "f3b6",
+      "name": "FTDM_OUT54",
+      "access": "RW"
+    },
+    {
+      "address": "f3b7",
+      "name": "FTDM_OUT55",
+      "access": "RW"
+    },
+    {
+      "address": "f3b8",
+      "name": "FTDM_OUT56",
+      "access": "RW"
+    },
+    {
+      "address": "f3b9",
+      "name": "FTDM_OUT57",
+      "access": "RW"
+    },
+    {
+      "address": "f3ba",
+      "name": "FTDM_OUT58",
+      "access": "RW"
+    },
+    {
+      "address": "f3bb",
+      "name": "FTDM_OUT59",
+      "access": "RW"
+    },
+    {
+      "address": "f3bc",
+      "name": "FTDM_OUT60",
+      "access": "RW"
+    },
+    {
+      "address": "f3bd",
+      "name": "FTDM_OUT61",
+      "access": "RW"
+    },
+    {
+      "address": "f3be",
+      "name": "FTDM_OUT62",
+      "access": "RW"
+    },
+    {
+      "address": "f3bf",
+      "name": "FTDM_OUT63",
+      "access": "RW"
+    },
+    {
+      "address": "f400",
+      "name": "HIBERNATE",
+      "access": "RW"
+    },
+    {
+      "address": "f401",
+      "name": "START_PULSE",
+      "access": "RW"
+    },
+    {
+      "address": "f402",
+      "name": "START_CORE",
+      "access": "RW"
+    },
+    {
+      "address": "f403",
+      "name": "KILL_CORE",
+      "access": "RW"
+    },
+    {
+      "address": "f404",
+      "name": "START_ADDRESS",
+      "access": "RW"
+    },
+    {
+      "address": "f405",
+      "name": "CORE_STATUS",
+      "access": "R"
+    },
+    {
+      "address": "f421",
+      "name": "PANIC_CLEAR",
+      "access": "RW"
+    },
+    {
+      "address": "f422",
+      "name": "PANIC_PARITY_MASK",
+      "access": "RW"
+    },
+    {
+      "address": "f423",
+      "name": "PANIC_SOFTWARE_MASK",
+      "access": "RW"
+    },
+    {
+      "address": "f424",
+      "name": "PANIC_WD_MASK",
+      "access": "RW"
+    },
+    {
+      "address": "f425",
+      "name": "PANIC_STACK_MASK",
+      "access": "RW"
+    },
+    {
+      "address": "f426",
+      "name": "PANIC_LOOP_MASK",
+      "access": "RW"
+    },
+    {
+      "address": "f427",
+      "name": "PANIC_FLAG",
+      "access": "R"
+    },
+    {
+      "address": "f428",
+      "name": "PANIC_CODE",
+      "access": "R"
+    },
+    {
+      "address": "f432",
+      "name": "EXECUTE_COUNT",
+      "access": "R"
+    },
+    {
+      "address": "f433",
+      "name": "SOFTWARE_VALUE_0",
+      "access": "RW"
+    },
+    {
+      "address": "f434",
+      "name": "SOFTWARE_VALUE_1",
+      "access": "RW"
+    },
+    {
+      "address": "f443",
+      "name": "WATCHDOG_MAXCOUNT",
+      "access": "RW"
+    },
+    {
+      "address": "f444",
+      "name": "WATCHDOG_PRESCALE",
+      "access": "RW"
+    },
+    {
+      "address": "f450",
+      "name": "BLOCKINT_EN",
+      "access": "RW"
+    },
+    {
+      "address": "f451",
+      "name": "BLOCKINT_VALUE",
+      "access": "RW"
+    },
+    {
+      "address": "f460",
+      "name": "PROG_CNTR0",
+      "access": "R"
+    },
+    {
+      "address": "f461",
+      "name": "PROG_CNTR1",
+      "access": "R"
+    },
+    {
+      "address": "f462",
+      "name": "PROG_CNTR_CLEAR",
+      "access": "RW"
+    },
+    {
+      "address": "f463",
+      "name": "PROG_CNTR_LENGTH0",
+      "access": "R"
+    },
+    {
+      "address": "f464",
+      "name": "PROG_CNTR_LENGTH1",
+      "access": "R"
+    },
+    {
+      "address": "f465",
+      "name": "PROG_CNTR_MAXLENGTH0",
+      "access": "R"
+    },
+    {
+      "address": "f466",
+      "name": "PROG_CNTR_MAXLENGTH1",
+      "access": "R"
+    },
+    {
+      "address": "f510",
+      "name": "MP0_MODE",
+      "access": "RW"
+    },
+    {
+      "address": "f511",
+      "name": "MP1_MODE",
+      "access": "RW"
+    },
+    {
+      "address": "f512",
+      "name": "MP2_MODE",
+      "access": "RW"
+    },
+    {
+      "address": "f513",
+      "name": "MP3_MODE",
+      "access": "RW"
+    },
+    {
+      "address": "f514",
+      "name": "MP4_MODE",
+      "access": "RW"
+    },
+    {
+      "address": "f515",
+      "name": "MP5_MODE",
+      "access": "RW"
+    },
+    {
+      "address": "f516",
+      "name": "MP6_MODE",
+      "access": "RW"
+    },
+    {
+      "address": "f517",
+      "name": "MP7_MODE",
+      "access": "RW"
+    },
+    {
+      "address": "f518",
+      "name": "MP8_MODE",
+      "access": "RW"
+    },
+    {
+      "address": "f519",
+      "name": "MP9_MODE",
+      "access": "RW"
+    },
+    {
+      "address": "f51a",
+      "name": "MP10_MODE",
+      "access": "RW"
+    },
+    {
+      "address": "f51b",
+      "name": "MP11_MODE",
+      "access": "RW"
+    },
+    {
+      "address": "f51c",
+      "name": "MP12_MODE",
+      "access": "RW"
+    },
+    {
+      "address": "f51d",
+      "name": "MP13_MODE",
+      "access": "RW"
+    },
+    {
+      "address": "f520",
+      "name": "MP0_WRITE",
+      "access": "RW"
+    },
+    {
+      "address": "f521",
+      "name": "MP1_WRITE",
+      "access": "RW"
+    },
+    {
+      "address": "f522",
+      "name": "MP2_WRITE",
+      "access": "RW"
+    },
+    {
+      "address": "f523",
+      "name": "MP3_WRITE",
+      "access": "RW"
+    },
+    {
+      "address": "f524",
+      "name": "MP4_WRITE",
+      "access": "RW"
+    },
+    {
+      "address": "f525",
+      "name": "MP5_WRITE",
+      "access": "RW"
+    },
+    {
+      "address": "f526",
+      "name": "MP6_WRITE",
+      "access": "RW"
+    },
+    {
+      "address": "f527",
+      "name": "MP7_WRITE",
+      "access": "RW"
+    },
+    {
+      "address": "f528",
+      "name": "MP8_WRITE",
+      "access": "RW"
+    },
+    {
+      "address": "f529",
+      "name": "MP9_WRITE",
+      "access": "RW"
+    },
+    {
+      "address": "f52a",
+      "name": "MP10_WRITE",
+      "access": "RW"
+    },
+    {
+      "address": "f52b",
+      "name": "MP11_WRITE",
+      "access": "RW"
+    },
+    {
+      "address": "f52c",
+      "name": "MP12_WRITE",
+      "access": "RW"
+    },
+    {
+      "address": "f52d",
+      "name": "MP13_WRITE",
+      "access": "RW"
+    },
+    {
+      "address": "f530",
+      "name": "MP0_READ",
+      "access": "R"
+    },
+    {
+      "address": "f531",
+      "name": "MP1_READ",
+      "access": "R"
+    },
+    {
+      "address": "f532",
+      "name": "MP2_READ",
+      "access": "R"
+    },
+    {
+      "address": "f533",
+      "name": "MP3_READ",
+      "access": "R"
+    },
+    {
+      "address": "f534",
+      "name": "MP4_READ",
+      "access": "R"
+    },
+    {
+      "address": "f535",
+      "name": "MP5_READ",
+      "access": "R"
+    },
+    {
+      "address": "f536",
+      "name": "MP6_READ",
+      "access": "R"
+    },
+    {
+      "address": "f537",
+      "name": "MP7_READ",
+      "access": "R"
+    },
+    {
+      "address": "f538",
+      "name": "MP8_READ",
+      "access": "R"
+    },
+    {
+      "address": "f539",
+      "name": "MP9_READ",
+      "access": "R"
+    },
+    {
+      "address": "f53a",
+      "name": "MP10_READ",
+      "access": "R"
+    },
+    {
+      "address": "f53b",
+      "name": "MP11_READ",
+      "access": "R"
+    },
+    {
+      "address": "f53c",
+      "name": "MP12_READ",
+      "access": "R"
+    },
+    {
+      "address": "f53d",
+      "name": "MP13_READ",
+      "access": "R"
+    },
+    {
+      "address": "f560",
+      "name": "DMIC_CTRL0",
+      "access": "RW"
+    },
+    {
+      "address": "f561",
+      "name": "DMIC_CTRL1",
+      "access": "RW"
+    },
+    {
+      "address": "f580",
+      "name": "ASRC_LOCK",
+      "access": "R"
+    },
+    {
+      "address": "f581",
+      "name": "ASRC_MUTE",
+      "access": "RW"
+    },
+    {
+      "address": "f582",
+      "name": "ASRC0_RATIO",
+      "access": "R"
+    },
+    {
+      "address": "f583",
+      "name": "ASRC1_RATIO",
+      "access": "R"
+    },
+    {
+      "address": "f584",
+      "name": "ASRC2_RATIO",
+      "access": "R"
+    },
+    {
+      "address": "f585",
+      "name": "ASRC3_RATIO",
+      "access": "R"
+    },
+    {
+      "address": "f586",
+      "name": "ASRC4_RATIO",
+      "access": "R"
+    },
+    {
+      "address": "f587",
+      "name": "ASRC5_RATIO",
+      "access": "R"
+    },
+    {
+      "address": "f588",
+      "name": "ASRC6_RATIO",
+      "access": "R"
+    },
+    {
+      "address": "f589",
+      "name": "ASRC7_RATIO",
+      "access": "R"
+    },
+    {
+      "address": "f5a0",
+      "name": "ADC_READ0",
+      "access": "R"
+    },
+    {
+      "address": "f5a1",
+      "name": "ADC_READ1",
+      "access": "R"
+    },
+    {
+      "address": "f5a2",
+      "name": "ADC_READ2",
+      "access": "R"
+    },
+    {
+      "address": "f5a3",
+      "name": "ADC_READ3",
+      "access": "R"
+    },
+    {
+      "address": "f5a4",
+      "name": "ADC_READ4",
+      "access": "R"
+    },
+    {
+      "address": "f5a5",
+      "name": "ADC_READ5",
+      "access": "R"
+    },
+    {
+      "address": "f600",
+      "name": "SPDIF_LOCK_DET",
+      "access": "R"
+    },
+    {
+      "address": "f601",
+      "name": "SPDIF_RX_CTRL",
+      "access": "RW"
+    },
+    {
+      "address": "f602",
+      "name": "SPDIF_RX_DECODE",
+      "access": "R"
+    },
+    {
+      "address": "f603",
+      "name": "SPDIF_RX_COMPRMODE",
+      "access": "R"
+    },
+    {
+      "address": "f604",
+      "name": "SPDIF_RESTART",
+      "access": "RW"
+    },
+    {
+      "address": "f605",
+      "name": "SPDIF_LOSS_OF_LOCK",
+      "access": "R"
+    },
+    {
+      "address": "f608",
+      "name": "SPDIF_AUX_EN",
+      "access": "RW"
+    },
+    {
+      "address": "f60f",
+      "name": "SPDIF_RX_AUXBIT_READY",
+      "access": "R"
+    },
+    {
+      "address": "f610",
+      "name": "SPDIF_RX_CS_LEFT_0",
+      "access": "R"
+    },
+    {
+      "address": "f611",
+      "name": "SPDIF_RX_CS_LEFT_1",
+      "access": "R"
+    },
+    {
+      "address": "f612",
+      "name": "SPDIF_RX_CS_LEFT_2",
+      "access": "R"
+    },
+    {
+      "address": "f613",
+      "name": "SPDIF_RX_CS_LEFT_3",
+      "access": "R"
+    },
+    {
+      "address": "f614",
+      "name": "SPDIF_RX_CS_LEFT_4",
+      "access": "R"
+    },
+    {
+      "address": "f615",
+      "name": "SPDIF_RX_CS_LEFT_5",
+      "access": "R"
+    },
+    {
+      "address": "f616",
+      "name": "SPDIF_RX_CS_LEFT_6",
+      "access": "R"
+    },
+    {
+      "address": "f617",
+      "name": "SPDIF_RX_CS_LEFT_7",
+      "access": "R"
+    },
+    {
+      "address": "f618",
+      "name": "SPDIF_RX_CS_LEFT_8",
+      "access": "R"
+    },
+    {
+      "address": "f619",
+      "name": "SPDIF_RX_CS_LEFT_9",
+      "access": "R"
+    },
+    {
+      "address": "f61a",
+      "name": "SPDIF_RX_CS_LEFT_10",
+      "access": "R"
+    },
+    {
+      "address": "f61b",
+      "name": "SPDIF_RX_CS_LEFT_11",
+      "access": "R"
+    },
+    {
+      "address": "f620",
+      "name": "SPDIF_RX_CS_RIGHT_0",
+      "access": "R"
+    },
+    {
+      "address": "f621",
+      "name": "SPDIF_RX_CS_RIGHT_1",
+      "access": "R"
+    },
+    {
+      "address": "f622",
+      "name": "SPDIF_RX_CS_RIGHT_2",
+      "access": "R"
+    },
+    {
+      "address": "f623",
+      "name": "SPDIF_RX_CS_RIGHT_3",
+      "access": "R"
+    },
+    {
+      "address": "f624",
+      "name": "SPDIF_RX_CS_RIGHT_4",
+      "access": "R"
+    },
+    {
+      "address": "f625",
+      "name": "SPDIF_RX_CS_RIGHT_5",
+      "access": "R"
+    },
+    {
+      "address": "f626",
+      "name": "SPDIF_RX_CS_RIGHT_6",
+      "access": "R"
+    },
+    {
+      "address": "f627",
+      "name": "SPDIF_RX_CS_RIGHT_7",
+      "access": "R"
+    },
+    {
+      "address": "f628",
+      "name": "SPDIF_RX_CS_RIGHT_8",
+      "access": "R"
+    },
+    {
+      "address": "f629",
+      "name": "SPDIF_RX_CS_RIGHT_9",
+      "access": "R"
+    },
+    {
+      "address": "f62a",
+      "name": "SPDIF_RX_CS_RIGHT_10",
+      "access": "R"
+    },
+    {
+      "address": "f62b",
+      "name": "SPDIF_RX_CS_RIGHT_11",
+      "access": "R"
+    },
+    {
+      "address": "f630",
+      "name": "SPDIF_RX_UD_LEFT_0",
+      "access": "R"
+    },
+    {
+      "address": "f631",
+      "name": "SPDIF_RX_UD_LEFT_1",
+      "access": "R"
+    },
+    {
+      "address": "f632",
+      "name": "SPDIF_RX_UD_LEFT_2",
+      "access": "R"
+    },
+    {
+      "address": "f633",
+      "name": "SPDIF_RX_UD_LEFT_3",
+      "access": "R"
+    },
+    {
+      "address": "f634",
+      "name": "SPDIF_RX_UD_LEFT_4",
+      "access": "R"
+    },
+    {
+      "address": "f635",
+      "name": "SPDIF_RX_UD_LEFT_5",
+      "access": "R"
+    },
+    {
+      "address": "f636",
+      "name": "SPDIF_RX_UD_LEFT_6",
+      "access": "R"
+    },
+    {
+      "address": "f637",
+      "name": "SPDIF_RX_UD_LEFT_7",
+      "access": "R"
+    },
+    {
+      "address": "f638",
+      "name": "SPDIF_RX_UD_LEFT_8",
+      "access": "R"
+    },
+    {
+      "address": "f639",
+      "name": "SPDIF_RX_UD_LEFT_9",
+      "access": "R"
+    },
+    {
+      "address": "f63a",
+      "name": "SPDIF_RX_UD_LEFT_10",
+      "access": "R"
+    },
+    {
+      "address": "f63b",
+      "name": "SPDIF_RX_UD_LEFT_11",
+      "access": "R"
+    },
+    {
+      "address": "f640",
+      "name": "SPDIF_RX_UD_RIGHT_0",
+      "access": "R"
+    },
+    {
+      "address": "f641",
+      "name": "SPDIF_RX_UD_RIGHT_1",
+      "access": "R"
+    },
+    {
+      "address": "f642",
+      "name": "SPDIF_RX_UD_RIGHT_2",
+      "access": "R"
+    },
+    {
+      "address": "f643",
+      "name": "SPDIF_RX_UD_RIGHT_3",
+      "access": "R"
+    },
+    {
+      "address": "f644",
+      "name": "SPDIF_RX_UD_RIGHT_4",
+      "access": "R"
+    },
+    {
+      "address": "f645",
+      "name": "SPDIF_RX_UD_RIGHT_5",
+      "access": "R"
+    },
+    {
+      "address": "f646",
+      "name": "SPDIF_RX_UD_RIGHT_6",
+      "access": "R"
+    },
+    {
+      "address": "f647",
+      "name": "SPDIF_RX_UD_RIGHT_7",
+      "access": "R"
+    },
+    {
+      "address": "f648",
+      "name": "SPDIF_RX_UD_RIGHT_8",
+      "access": "R"
+    },
+    {
+      "address": "f649",
+      "name": "SPDIF_RX_UD_RIGHT_9",
+      "access": "R"
+    },
+    {
+      "address": "f64a",
+      "name": "SPDIF_RX_UD_RIGHT_10",
+      "access": "R"
+    },
+    {
+      "address": "f64b",
+      "name": "SPDIF_RX_UD_RIGHT_11",
+      "access": "R"
+    },
+    {
+      "address": "f650",
+      "name": "SPDIF_RX_VB_LEFT_0",
+      "access": "R"
+    },
+    {
+      "address": "f651",
+      "name": "SPDIF_RX_VB_LEFT_1",
+      "access": "R"
+    },
+    {
+      "address": "f652",
+      "name": "SPDIF_RX_VB_LEFT_2",
+      "access": "R"
+    },
+    {
+      "address": "f653",
+      "name": "SPDIF_RX_VB_LEFT_3",
+      "access": "R"
+    },
+    {
+      "address": "f654",
+      "name": "SPDIF_RX_VB_LEFT_4",
+      "access": "R"
+    },
+    {
+      "address": "f655",
+      "name": "SPDIF_RX_VB_LEFT_5",
+      "access": "R"
+    },
+    {
+      "address": "f656",
+      "name": "SPDIF_RX_VB_LEFT_6",
+      "access": "R"
+    },
+    {
+      "address": "f657",
+      "name": "SPDIF_RX_VB_LEFT_7",
+      "access": "R"
+    },
+    {
+      "address": "f658",
+      "name": "SPDIF_RX_VB_LEFT_8",
+      "access": "R"
+    },
+    {
+      "address": "f659",
+      "name": "SPDIF_RX_VB_LEFT_9",
+      "access": "R"
+    },
+    {
+      "address": "f65a",
+      "name": "SPDIF_RX_VB_LEFT_10",
+      "access": "R"
+    },
+    {
+      "address": "f65b",
+      "name": "SPDIF_RX_VB_LEFT_11",
+      "access": "R"
+    },
+    {
+      "address": "f660",
+      "name": "SPDIF_RX_VB_RIGHT_0",
+      "access": "R"
+    },
+    {
+      "address": "f661",
+      "name": "SPDIF_RX_VB_RIGHT_1",
+      "access": "R"
+    },
+    {
+      "address": "f662",
+      "name": "SPDIF_RX_VB_RIGHT_2",
+      "access": "R"
+    },
+    {
+      "address": "f663",
+      "name": "SPDIF_RX_VB_RIGHT_3",
+      "access": "R"
+    },
+    {
+      "address": "f664",
+      "name": "SPDIF_RX_VB_RIGHT_4",
+      "access": "R"
+    },
+    {
+      "address": "f665",
+      "name": "SPDIF_RX_VB_RIGHT_5",
+      "access": "R"
+    },
+    {
+      "address": "f666",
+      "name": "SPDIF_RX_VB_RIGHT_6",
+      "access": "R"
+    },
+    {
+      "address": "f667",
+      "name": "SPDIF_RX_VB_RIGHT_7",
+      "access": "R"
+    },
+    {
+      "address": "f668",
+      "name": "SPDIF_RX_VB_RIGHT_8",
+      "access": "R"
+    },
+    {
+      "address": "f669",
+      "name": "SPDIF_RX_VB_RIGHT_9",
+      "access": "R"
+    },
+    {
+      "address": "f66a",
+      "name": "SPDIF_RX_VB_RIGHT_10",
+      "access": "R"
+    },
+    {
+      "address": "f66b",
+      "name": "SPDIF_RX_VB_RIGHT_11",
+      "access": "R"
+    },
+    {
+      "address": "f670",
+      "name": "SPDIF_RX_PB_LEFT_0",
+      "access": "R"
+    },
+    {
+      "address": "f671",
+      "name": "SPDIF_RX_PB_LEFT_1",
+      "access": "R"
+    },
+    {
+      "address": "f672",
+      "name": "SPDIF_RX_PB_LEFT_2",
+      "access": "R"
+    },
+    {
+      "address": "f673",
+      "name": "SPDIF_RX_PB_LEFT_3",
+      "access": "R"
+    },
+    {
+      "address": "f674",
+      "name": "SPDIF_RX_PB_LEFT_4",
+      "access": "R"
+    },
+    {
+      "address": "f675",
+      "name": "SPDIF_RX_PB_LEFT_5",
+      "access": "R"
+    },
+    {
+      "address": "f676",
+      "name": "SPDIF_RX_PB_LEFT_6",
+      "access": "R"
+    },
+    {
+      "address": "f677",
+      "name": "SPDIF_RX_PB_LEFT_7",
+      "access": "R"
+    },
+    {
+      "address": "f678",
+      "name": "SPDIF_RX_PB_LEFT_8",
+      "access": "R"
+    },
+    {
+      "address": "f679",
+      "name": "SPDIF_RX_PB_LEFT_9",
+      "access": "R"
+    },
+    {
+      "address": "f67a",
+      "name": "SPDIF_RX_PB_LEFT_10",
+      "access": "R"
+    },
+    {
+      "address": "f67b",
+      "name": "SPDIF_RX_PB_LEFT_11",
+      "access": "R"
+    },
+    {
+      "address": "f680",
+      "name": "SPDIF_RX_PB_RIGHT_0",
+      "access": "R"
+    },
+    {
+      "address": "f681",
+      "name": "SPDIF_RX_PB_RIGHT_1",
+      "access": "R"
+    },
+    {
+      "address": "f682",
+      "name": "SPDIF_RX_PB_RIGHT_2",
+      "access": "R"
+    },
+    {
+      "address": "f683",
+      "name": "SPDIF_RX_PB_RIGHT_3",
+      "access": "R"
+    },
+    {
+      "address": "f684",
+      "name": "SPDIF_RX_PB_RIGHT_4",
+      "access": "R"
+    },
+    {
+      "address": "f685",
+      "name": "SPDIF_RX_PB_RIGHT_5",
+      "access": "R"
+    },
+    {
+      "address": "f686",
+      "name": "SPDIF_RX_PB_RIGHT_6",
+      "access": "R"
+    },
+    {
+      "address": "f687",
+      "name": "SPDIF_RX_PB_RIGHT_7",
+      "access": "R"
+    },
+    {
+      "address": "f688",
+      "name": "SPDIF_RX_PB_RIGHT_8",
+      "access": "R"
+    },
+    {
+      "address": "f689",
+      "name": "SPDIF_RX_PB_RIGHT_9",
+      "access": "R"
+    },
+    {
+      "address": "f68a",
+      "name": "SPDIF_RX_PB_RIGHT_10",
+      "access": "R"
+    },
+    {
+      "address": "f68b",
+      "name": "SPDIF_RX_PB_RIGHT_11",
+      "access": "R"
+    },
+    {
+      "address": "f690",
+      "name": "SPDIF_TX_EN",
+      "access": "RW"
+    },
+    {
+      "address": "f691",
+      "name": "SPDIF_TX_CTRL",
+      "access": "RW"
+    },
+    {
+      "address": "f69f",
+      "name": "SPDIF_TX_AUXBIT_SOURCE",
+      "access": "RW"
+    },
+    {
+      "address": "f6a0",
+      "name": "SPDIF_TX_CS_LEFT_0",
+      "access": "RW"
+    },
+    {
+      "address": "f6a1",
+      "name": "SPDIF_TX_CS_LEFT_1",
+      "access": "RW"
+    },
+    {
+      "address": "f6a2",
+      "name": "SPDIF_TX_CS_LEFT_2",
+      "access": "RW"
+    },
+    {
+      "address": "f6a3",
+      "name": "SPDIF_TX_CS_LEFT_3",
+      "access": "RW"
+    },
+    {
+      "address": "f6a4",
+      "name": "SPDIF_TX_CS_LEFT_4",
+      "access": "RW"
+    },
+    {
+      "address": "f6a5",
+      "name": "SPDIF_TX_CS_LEFT_5",
+      "access": "RW"
+    },
+    {
+      "address": "f6a6",
+      "name": "SPDIF_TX_CS_LEFT_6",
+      "access": "RW"
+    },
+    {
+      "address": "f6a7",
+      "name": "SPDIF_TX_CS_LEFT_7",
+      "access": "RW"
+    },
+    {
+      "address": "f6a8",
+      "name": "SPDIF_TX_CS_LEFT_8",
+      "access": "RW"
+    },
+    {
+      "address": "f6a9",
+      "name": "SPDIF_TX_CS_LEFT_9",
+      "access": "RW"
+    },
+    {
+      "address": "f6aa",
+      "name": "SPDIF_TX_CS_LEFT_10",
+      "access": "RW"
+    },
+    {
+      "address": "f6ab",
+      "name": "SPDIF_TX_CS_LEFT_11",
+      "access": "RW"
+    },
+    {
+      "address": "f6b0",
+      "name": "SPDIF_TX_CS_RIGHT_0",
+      "access": "RW"
+    },
+    {
+      "address": "f6b1",
+      "name": "SPDIF_TX_CS_RIGHT_1",
+      "access": "RW"
+    },
+    {
+      "address": "f6b2",
+      "name": "SPDIF_TX_CS_RIGHT_2",
+      "access": "RW"
+    },
+    {
+      "address": "f6b3",
+      "name": "SPDIF_TX_CS_RIGHT_3",
+      "access": "RW"
+    },
+    {
+      "address": "f6b4",
+      "name": "SPDIF_TX_CS_RIGHT_4",
+      "access": "RW"
+    },
+    {
+      "address": "f6b5",
+      "name": "SPDIF_TX_CS_RIGHT_5",
+      "access": "RW"
+    },
+    {
+      "address": "f6b6",
+      "name": "SPDIF_TX_CS_RIGHT_6",
+      "access": "RW"
+    },
+    {
+      "address": "f6b7",
+      "name": "SPDIF_TX_CS_RIGHT_7",
+      "access": "RW"
+    },
+    {
+      "address": "f6b8",
+      "name": "SPDIF_TX_CS_RIGHT_8",
+      "access": "RW"
+    },
+    {
+      "address": "f6b9",
+      "name": "SPDIF_TX_CS_RIGHT_9",
+      "access": "RW"
+    },
+    {
+      "address": "f6ba",
+      "name": "SPDIF_TX_CS_RIGHT_10",
+      "access": "RW"
+    },
+    {
+      "address": "f6bb",
+      "name": "SPDIF_TX_CS_RIGHT_11",
+      "access": "RW"
+    },
+    {
+      "address": "f6c0",
+      "name": "SPDIF_TX_UD_LEFT_0",
+      "access": "RW"
+    },
+    {
+      "address": "f6c1",
+      "name": "SPDIF_TX_UD_LEFT_1",
+      "access": "RW"
+    },
+    {
+      "address": "f6c2",
+      "name": "SPDIF_TX_UD_LEFT_2",
+      "access": "RW"
+    },
+    {
+      "address": "f6c3",
+      "name": "SPDIF_TX_UD_LEFT_3",
+      "access": "RW"
+    },
+    {
+      "address": "f6c4",
+      "name": "SPDIF_TX_UD_LEFT_4",
+      "access": "RW"
+    },
+    {
+      "address": "f6c5",
+      "name": "SPDIF_TX_UD_LEFT_5",
+      "access": "RW"
+    },
+    {
+      "address": "f6c6",
+      "name": "SPDIF_TX_UD_LEFT_6",
+      "access": "RW"
+    },
+    {
+      "address": "f6c7",
+      "name": "SPDIF_TX_UD_LEFT_7",
+      "access": "RW"
+    },
+    {
+      "address": "f6c8",
+      "name": "SPDIF_TX_UD_LEFT_8",
+      "access": "RW"
+    },
+    {
+      "address": "f6c9",
+      "name": "SPDIF_TX_UD_LEFT_9",
+      "access": "RW"
+    },
+    {
+      "address": "f6ca",
+      "name": "SPDIF_TX_UD_LEFT_10",
+      "access": "RW"
+    },
+    {
+      "address": "f6cb",
+      "name": "SPDIF_TX_UD_LEFT_11",
+      "access": "RW"
+    },
+    {
+      "address": "f6d0",
+      "name": "SPDIF_TX_UD_RIGHT_0",
+      "access": "RW"
+    },
+    {
+      "address": "f6d1",
+      "name": "SPDIF_TX_UD_RIGHT_1",
+      "access": "RW"
+    },
+    {
+      "address": "f6d2",
+      "name": "SPDIF_TX_UD_RIGHT_2",
+      "access": "RW"
+    },
+    {
+      "address": "f6d3",
+      "name": "SPDIF_TX_UD_RIGHT_3",
+      "access": "RW"
+    },
+    {
+      "address": "f6d4",
+      "name": "SPDIF_TX_UD_RIGHT_4",
+      "access": "RW"
+    },
+    {
+      "address": "f6d5",
+      "name": "SPDIF_TX_UD_RIGHT_5",
+      "access": "RW"
+    },
+    {
+      "address": "f6d6",
+      "name": "SPDIF_TX_UD_RIGHT_6",
+      "access": "RW"
+    },
+    {
+      "address": "f6d7",
+      "name": "SPDIF_TX_UD_RIGHT_7",
+      "access": "RW"
+    },
+    {
+      "address": "f6d8",
+      "name": "SPDIF_TX_UD_RIGHT_8",
+      "access": "RW"
+    },
+    {
+      "address": "f6d9",
+      "name": "SPDIF_TX_UD_RIGHT_9",
+      "access": "RW"
+    },
+    {
+      "address": "f6da",
+      "name": "SPDIF_TX_UD_RIGHT_10",
+      "access": "RW"
+    },
+    {
+      "address": "f6db",
+      "name": "SPDIF_TX_UD_RIGHT_11",
+      "access": "RW"
+    },
+    {
+      "address": "f6e0",
+      "name": "SPDIF_TX_VB_LEFT_0",
+      "access": "RW"
+    },
+    {
+      "address": "f6e1",
+      "name": "SPDIF_TX_VB_LEFT_1",
+      "access": "RW"
+    },
+    {
+      "address": "f6e2",
+      "name": "SPDIF_TX_VB_LEFT_2",
+      "access": "RW"
+    },
+    {
+      "address": "f6e3",
+      "name": "SPDIF_TX_VB_LEFT_3",
+      "access": "RW"
+    },
+    {
+      "address": "f6e4",
+      "name": "SPDIF_TX_VB_LEFT_4",
+      "access": "RW"
+    },
+    {
+      "address": "f6e5",
+      "name": "SPDIF_TX_VB_LEFT_5",
+      "access": "RW"
+    },
+    {
+      "address": "f6e6",
+      "name": "SPDIF_TX_VB_LEFT_6",
+      "access": "RW"
+    },
+    {
+      "address": "f6e7",
+      "name": "SPDIF_TX_VB_LEFT_7",
+      "access": "RW"
+    },
+    {
+      "address": "f6e8",
+      "name": "SPDIF_TX_VB_LEFT_8",
+      "access": "RW"
+    },
+    {
+      "address": "f6e9",
+      "name": "SPDIF_TX_VB_LEFT_9",
+      "access": "RW"
+    },
+    {
+      "address": "f6ea",
+      "name": "SPDIF_TX_VB_LEFT_10",
+      "access": "RW"
+    },
+    {
+      "address": "f6eb",
+      "name": "SPDIF_TX_VB_LEFT_11",
+      "access": "RW"
+    },
+    {
+      "address": "f6f0",
+      "name": "SPDIF_TX_VB_RIGHT_0",
+      "access": "RW"
+    },
+    {
+      "address": "f6f1",
+      "name": "SPDIF_TX_VB_RIGHT_1",
+      "access": "RW"
+    },
+    {
+      "address": "f6f2",
+      "name": "SPDIF_TX_VB_RIGHT_2",
+      "access": "RW"
+    },
+    {
+      "address": "f6f3",
+      "name": "SPDIF_TX_VB_RIGHT_3",
+      "access": "RW"
+    },
+    {
+      "address": "f6f4",
+      "name": "SPDIF_TX_VB_RIGHT_4",
+      "access": "RW"
+    },
+    {
+      "address": "f6f5",
+      "name": "SPDIF_TX_VB_RIGHT_5",
+      "access": "RW"
+    },
+    {
+      "address": "f6f6",
+      "name": "SPDIF_TX_VB_RIGHT_6",
+      "access": "RW"
+    },
+    {
+      "address": "f6f7",
+      "name": "SPDIF_TX_VB_RIGHT_7",
+      "access": "RW"
+    },
+    {
+      "address": "f6f8",
+      "name": "SPDIF_TX_VB_RIGHT_8",
+      "access": "RW"
+    },
+    {
+      "address": "f6f9",
+      "name": "SPDIF_TX_VB_RIGHT_9",
+      "access": "RW"
+    },
+    {
+      "address": "f6fa",
+      "name": "SPDIF_TX_VB_RIGHT_10",
+      "access": "RW"
+    },
+    {
+      "address": "f6fb",
+      "name": "SPDIF_TX_VB_RIGHT_11",
+      "access": "RW"
+    },
+    {
+      "address": "f700",
+      "name": "SPDIF_TX_PB_LEFT_0",
+      "access": "RW"
+    },
+    {
+      "address": "f701",
+      "name": "SPDIF_TX_PB_LEFT_1",
+      "access": "RW"
+    },
+    {
+      "address": "f702",
+      "name": "SPDIF_TX_PB_LEFT_2",
+      "access": "RW"
+    },
+    {
+      "address": "f703",
+      "name": "SPDIF_TX_PB_LEFT_3",
+      "access": "RW"
+    },
+    {
+      "address": "f704",
+      "name": "SPDIF_TX_PB_LEFT_4",
+      "access": "RW"
+    },
+    {
+      "address": "f705",
+      "name": "SPDIF_TX_PB_LEFT_5",
+      "access": "RW"
+    },
+    {
+      "address": "f706",
+      "name": "SPDIF_TX_PB_LEFT_6",
+      "access": "RW"
+    },
+    {
+      "address": "f707",
+      "name": "SPDIF_TX_PB_LEFT_7",
+      "access": "RW"
+    },
+    {
+      "address": "f708",
+      "name": "SPDIF_TX_PB_LEFT_8",
+      "access": "RW"
+    },
+    {
+      "address": "f709",
+      "name": "SPDIF_TX_PB_LEFT_9",
+      "access": "RW"
+    },
+    {
+      "address": "f70a",
+      "name": "SPDIF_TX_PB_LEFT_10",
+      "access": "RW"
+    },
+    {
+      "address": "f70b",
+      "name": "SPDIF_TX_PB_LEFT_11",
+      "access": "RW"
+    },
+    {
+      "address": "f710",
+      "name": "SPDIF_TX_PB_RIGHT_0",
+      "access": "RW"
+    },
+    {
+      "address": "f711",
+      "name": "SPDIF_TX_PB_RIGHT_1",
+      "access": "RW"
+    },
+    {
+      "address": "f712",
+      "name": "SPDIF_TX_PB_RIGHT_2",
+      "access": "RW"
+    },
+    {
+      "address": "f713",
+      "name": "SPDIF_TX_PB_RIGHT_3",
+      "access": "RW"
+    },
+    {
+      "address": "f714",
+      "name": "SPDIF_TX_PB_RIGHT_4",
+      "access": "RW"
+    },
+    {
+      "address": "f715",
+      "name": "SPDIF_TX_PB_RIGHT_5",
+      "access": "RW"
+    },
+    {
+      "address": "f716",
+      "name": "SPDIF_TX_PB_RIGHT_6",
+      "access": "RW"
+    },
+    {
+      "address": "f717",
+      "name": "SPDIF_TX_PB_RIGHT_7",
+      "access": "RW"
+    },
+    {
+      "address": "f718",
+      "name": "SPDIF_TX_PB_RIGHT_8",
+      "access": "RW"
+    },
+    {
+      "address": "f719",
+      "name": "SPDIF_TX_PB_RIGHT_9",
+      "access": "RW"
+    },
+    {
+      "address": "f71a",
+      "name": "SPDIF_TX_PB_RIGHT_10",
+      "access": "RW"
+    },
+    {
+      "address": "f71b",
+      "name": "SPDIF_TX_PB_RIGHT_11",
+      "access": "RW"
+    },
+    {
+      "address": "f780",
+      "name": "BCLK_IN0_PIN",
+      "access": "RW"
+    },
+    {
+      "address": "f781",
+      "name": "BCLK_IN1_PIN",
+      "access": "RW"
+    },
+    {
+      "address": "f782",
+      "name": "BCLK_IN2_PIN",
+      "access": "RW"
+    },
+    {
+      "address": "f783",
+      "name": "BCLK_IN3_PIN",
+      "access": "RW"
+    },
+    {
+      "address": "f784",
+      "name": "BCLK_OUT0_PIN",
+      "access": "RW"
+    },
+    {
+      "address": "f785",
+      "name": "BCLK_OUT1_PIN",
+      "access": "RW"
+    },
+    {
+      "address": "f786",
+      "name": "BCLK_OUT2_PIN",
+      "access": "RW"
+    },
+    {
+      "address": "f787",
+      "name": "BCLK_OUT3_PIN",
+      "access": "RW"
+    },
+    {
+      "address": "f788",
+      "name": "LRCLK_IN0_PIN",
+      "access": "RW"
+    },
+    {
+      "address": "f789",
+      "name": "LRCLK_IN1_PIN",
+      "access": "RW"
+    },
+    {
+      "address": "f78a",
+      "name": "LRCLK_IN2_PIN",
+      "access": "RW"
+    },
+    {
+      "address": "f78b",
+      "name": "LRCLK_IN3_PIN",
+      "access": "RW"
+    },
+    {
+      "address": "f78c",
+      "name": "LRCLK_OUT0_PIN",
+      "access": "RW"
+    },
+    {
+      "address": "f78d",
+      "name": "LRCLK_OUT1_PIN",
+      "access": "RW"
+    },
+    {
+      "address": "f78e",
+      "name": "LRCLK_OUT2_PIN",
+      "access": "RW"
+    },
+    {
+      "address": "f78f",
+      "name": "LRCLK_OUT3_PIN",
+      "access": "RW"
+    },
+    {
+      "address": "f790",
+      "name": "SDATA_IN0_PIN",
+      "access": "RW"
+    },
+    {
+      "address": "f791",
+      "name": "SDATA_IN1_PIN",
+      "access": "RW"
+    },
+    {
+      "address": "f792",
+      "name": "SDATA_IN2_PIN",
+      "access": "RW"
+    },
+    {
+      "address": "f793",
+      "name": "SDATA_IN3_PIN",
+      "access": "RW"
+    },
+    {
+      "address": "f794",
+      "name": "SDATA_OUT0_PIN",
+      "access": "RW"
+    },
+    {
+      "address": "f795",
+      "name": "SDATA_OUT1_PIN",
+      "access": "RW"
+    },
+    {
+      "address": "f796",
+      "name": "SDATA_OUT2_PIN",
+      "access": "RW"
+    },
+    {
+      "address": "f797",
+      "name": "SDATA_OUT3_PIN",
+      "access": "RW"
+    },
+    {
+      "address": "f798",
+      "name": "SPDIF_TX_PIN",
+      "access": "RW"
+    },
+    {
+      "address": "f799",
+      "name": "SCLK_SCL_PIN",
+      "access": "RW"
+    },
+    {
+      "address": "f79a",
+      "name": "MISO_SDA_PIN",
+      "access": "RW"
+    },
+    {
+      "address": "f79b",
+      "name": "SS_PIN",
+      "access": "RW"
+    },
+    {
+      "address": "f79c",
+      "name": "MOSI_ADDR1_PIN",
+      "access": "RW"
+    },
+    {
+      "address": "f79d",
+      "name": "SCLK_SCL_M_PIN",
+      "access": "RW"
+    },
+    {
+      "address": "f79e",
+      "name": "MISO_SDA_M_PIN",
+      "access": "RW"
+    },
+    {
+      "address": "f79f",
+      "name": "SS_M_PIN",
+      "access": "RW"
+    },
+    {
+      "address": "f7a0",
+      "name": "MOSI_M_PIN",
+      "access": "RW"
+    },
+    {
+      "address": "f7a1",
+      "name": "MP6_PIN",
+      "access": "RW"
+    },
+    {
+      "address": "f7a2",
+      "name": "MP7_PIN",
+      "access": "RW"
+    },
+    {
+      "address": "f7a3",
+      "name": "CLKOUT_PIN",
+      "access": "RW"
+    },
+    {
+      "address": "f890",
+      "name": "SOFT_RESET",
+      "access": "RW"
+    }
+  ]
+}

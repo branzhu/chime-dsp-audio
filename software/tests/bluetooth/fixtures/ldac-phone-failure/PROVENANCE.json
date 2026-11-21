@@ -1,0 +1,63 @@
+{
+  "source": "tmp/fail.txt, complete fault-only post-AVDTP packet dump captured on 2026-11-21",
+  "source_log_sha256": "f1f3d7e1cc6d30ba57244894e1b2332092bffdfa8663b0426fa2debed0253d49",
+  "packet_sha256": "fac6058ea0693bf7860658f1acc78bfb6f3fd7fd2f3c3e855e814099ac6b89d3",
+  "packet_bytes": 657,
+  "codec": "LDAC",
+  "sample_rate": 48000,
+  "timestamp": 55570432,
+  "epoch": 3,
+  "format": "Original post-AVDTP bytes, including the one-byte LDAC media header; not a length-prefixed encoder fixture",
+  "frame_packet_offsets": [
+    1,
+    165,
+    329,
+    493
+  ],
+  "frame_declared_bytes": [
+    164,
+    164,
+    164,
+    164
+  ],
+  "observed_failure": "Frame 2 sync is 0x3f instead of 0xaa; no bytes have been repaired or removed",
+  "limitations": "Fault-time worker capture only. No ingress capture, phone HCI snoop, preceding decode history or proof of corruption origin.",
+  "files": {
+    "48000-sync-corrupt.packet": "fac6058ea0693bf7860658f1acc78bfb6f3fd7fd2f3c3e855e814099ac6b89d3",
+    "48000-frame2-header-corrupt-2.packet": "4de8a95fedb3c0d0e468827114843821131b586b673f4275bf0e2f208c3821ce",
+    "48000-frame2-header-corrupt-2.hex": "a62757e2370a9c5b591b0a4fd3329a87eca620c84bd40ea15f79d3fc56ac9b17"
+  },
+  "synthetic_control": "Test-only replacement of byte165 from 0x3f to 0xaa passes all four frame layout checks, but the real reference core rejects the first frame with zero PCM on a fresh decoder. This does not establish corruption origin or distinguish further payload damage from decoder compatibility.",
+  "second_sample": {
+    "source": "User-pasted complete fault log, 2026-11-21; hex transcription preserves bytes and offsets, not UART formatting",
+    "packet_file": "48000-frame2-header-corrupt-2.packet",
+    "packet_bytes": 657,
+    "epoch": 3,
+    "timestamp": 23443968,
+    "fault_boot_ms": 595475,
+    "packets": 45790,
+    "queued_frames": 4471,
+    "gap_events": 0,
+    "gap_blocks": 0,
+    "observed_failure": "At original packet offset165: 15 22 60, invalid sync and mono mode; uninterpretable frame header declares156 bytes. Valid stereo headers at1,329,493 each declare164. No bytes repaired."
+  },
+  "frame_isolation": {
+    "test": "software/tests/bluetooth/test_ldac_phone_failures.c",
+    "contexts": "Cold decoder and decoder warmed with four known-valid encoder frames; not actual preceding phone history",
+    "first_sample_original_slots": [
+      "SYNTAX_SPEC=267",
+      "layout rejected before SDK decode",
+      "SYNTAX_SPEC=267",
+      "SYNTAX_SPEC=267"
+    ],
+    "second_sample_original_slots": [
+      "SYNTAX_SPEC=267",
+      "layout rejected before SDK decode",
+      "128 PCM frames",
+      "128 PCM frames"
+    ],
+    "synthetic_header2_first_sample": "128 PCM frames",
+    "synthetic_header2_second_sample": "SYNTAX_GRAD_D=264",
+    "legacy_cross_check": "Host-only old MIT decoder agrees on success/failure for all original slots and synthetic header2 cases; not linked into firmware"
+  }
+}

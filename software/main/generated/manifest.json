@@ -1,0 +1,162 @@
+{
+  "schema": 4,
+  "project": "dsp/ADAU1451.ssprj",
+  "binding": "dsp/esp32-bindings.json",
+  "tool": "3.4.0.0",
+  "boot_profile": "board-bound-v4",
+  "source_sha256": {
+    "dsp/esp32-bindings.json": "29e4f0ac6b5988b74f034b5e09881c0555aa92e276bcc5435d296ddfa64c6db6",
+    "dsp/ADAU1451.ssprj": "c17d7740ca1af2fc0847a98a940ec12e1a5427dd47bc9e4902d4d5fbceb3728c",
+    "dsp/ADAU1451/ADAU145xSchematic_0/Program.dat": "c3ed95960c0cd6886cd08d536b61845ae565f386afe19d2174a22f59607809c8",
+    "dsp/ADAU1451/ADAU145xSchematic_0/Program.bin": "457ceaf2ff46ddcc235eefd6096801fef045d6fddb5462766c07a7062646bf7c",
+    "dsp/ADAU1451/ADAU145xSchematic_0/DMem0.dat": "8ddf2a13f1adfd7efb25fd54e4fe26f26d4e62f9ea14baa73715f82d1260a96b",
+    "dsp/ADAU1451/ADAU145xSchematic_0/DMem1.dat": "4895a535242963931503432ec9d630f29edafed11f014f993f7ee4e644d7fcc1",
+    "dsp/ADAU1451/ADAU145xSchematic_0/PMem.dat": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "dsp/ADAU1451/ADAU145xSchematic_0/ParamAddress.dat": "82cc8b369cb3776085e2b2f4d9a87f7b0aca5b8928f06e2c49b71d97a495619c",
+    "dsp/ADAU1451/ADAU145xSchematic_0/compiler_output.log": "6c1bbcefc0366c7470e0c5bf0712090ccde5854c2faaa3d9ff42024436ec734e"
+  },
+  "segments": [
+    {
+      "source": "Program.dat",
+      "address": "c000",
+      "bytes": 864,
+      "sha256": "ae16a72b95ed5332badeee3d0a9787632a382e72e0ca224a4140223259ad1686"
+    },
+    {
+      "source": "DMem0.dat",
+      "address": "0000",
+      "bytes": 400,
+      "sha256": "0644803012ae6c9438fdc5c8ec6375102dde9a3087c77633acc8b42b5b95eebe"
+    },
+    {
+      "source": "DMem1.dat",
+      "address": "6000",
+      "bytes": 304,
+      "sha256": "6cef2229545d0cd391e661052019bed1471468e0e7d9f9e968c82e18563a2b0a"
+    }
+  ],
+  "register_profile": "reviewed board 48k I2S/ASRC hardware-init subset; NOT vendor register import",
+  "eeprom_written": false,
+  "boot_parameter_overrides": [],
+  "saved_project_gain": {
+    "L": -16.0,
+    "R": -16.0,
+    "SUB": 1.0
+  },
+  "saved_project_gain_is_db": {
+    "L": true,
+    "R": true,
+    "SUB": true
+  },
+  "saved_project_gain_linear": {
+    "L": 0.15848931924611134,
+    "R": 0.15848931924611134,
+    "SUB": 1.1220184543019633
+  },
+  "compiled_gain": {
+    "L": 0.15848934650421143,
+    "R": 0.15848934650421143,
+    "SUB": 1.1220184564590454
+  },
+  "output_gain_addresses": {
+    "L": "005c",
+    "R": "0059",
+    "SUB": "005b"
+  },
+  "output_gain_words": {
+    "L": "002892c2",
+    "R": "002892c2",
+    "SUB": "011f3c9a"
+  },
+  "optional_live_parameters": {
+    "MixerLinear2x1_0.vol_00_00": 44,
+    "MixerLinear2x1_0.vol_00_01": 45
+  },
+  "safeload": {
+    "data": 24576,
+    "address": 24581,
+    "count": 24582
+  },
+  "ram_regions": [
+    {
+      "first": 0,
+      "last": 43,
+      "permissions": "DSP_REGION_READ|DSP_REGION_WRITE|DSP_REGION_STOPPED"
+    },
+    {
+      "first": 44,
+      "last": 45,
+      "permissions": "DSP_REGION_READ|DSP_REGION_WRITE|DSP_REGION_SAFELOAD_TARGET"
+    },
+    {
+      "first": 46,
+      "last": 88,
+      "permissions": "DSP_REGION_READ|DSP_REGION_WRITE|DSP_REGION_STOPPED"
+    },
+    {
+      "first": 89,
+      "last": 89,
+      "permissions": "DSP_REGION_READ|DSP_REGION_WRITE|DSP_REGION_SAFELOAD_TARGET"
+    },
+    {
+      "first": 90,
+      "last": 90,
+      "permissions": "DSP_REGION_READ|DSP_REGION_WRITE|DSP_REGION_STOPPED"
+    },
+    {
+      "first": 91,
+      "last": 92,
+      "permissions": "DSP_REGION_READ|DSP_REGION_WRITE|DSP_REGION_SAFELOAD_TARGET"
+    },
+    {
+      "first": 93,
+      "last": 8191,
+      "permissions": "DSP_REGION_READ|DSP_REGION_WRITE|DSP_REGION_STOPPED"
+    },
+    {
+      "first": 24576,
+      "last": 32767,
+      "permissions": "DSP_REGION_READ|DSP_REGION_WRITE|DSP_REGION_STOPPED"
+    },
+    {
+      "first": 49152,
+      "last": 57343,
+      "permissions": "DSP_REGION_READ|DSP_REGION_WRITE|DSP_REGION_STOPPED"
+    }
+  ],
+  "source_note": "Bound output gains match compiler 8.24 within 1 LSB; routing restores exact compiled values. Upstream processing is not topology-pinned or acoustically certified.",
+  "board_contract": {
+    "sample_rate_hz": 48000,
+    "input": {
+      "uid": "ASRCInput_0",
+      "pins": [
+        "Ch0_out",
+        "Ch1_out"
+      ]
+    },
+    "outputs": {
+      "L": {
+        "uid": "Gain_0",
+        "parameter": "Gain_0.Gain",
+        "channels": [
+          16
+        ]
+      },
+      "R": {
+        "uid": "Gain_1",
+        "parameter": "Gain_1.Gain",
+        "channels": [
+          17
+        ]
+      },
+      "SUB": {
+        "uid": "Gain_2",
+        "parameter": "Gain_2.Gain",
+        "channels": [
+          32,
+          33
+        ]
+      }
+    }
+  }
+}

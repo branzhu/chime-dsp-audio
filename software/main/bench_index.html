@@ -1,0 +1,248 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Chime · Wi-Fi 设置与设备状态</title>
+<style>
+:root{color-scheme:dark;font:16px/1.6 system-ui,-apple-system,"Segoe UI",sans-serif;background:#101820;color:#e5edf4}
+body{max-width:780px;margin:auto;padding:36px 20px}header{display:flex;align-items:center;gap:12px}h1{font-size:28px;margin:0}.tag{font-size:12px;padding:3px 10px;border:1px solid #487660;border-radius:20px;color:#a8e8c0}
+.intro{color:#a4b4c4}section{background:#192631;border:1px solid #304455;border-radius:14px;padding:22px;margin-top:20px}.label{color:#a4b4c4;font-size:14px}.ip{font-size:36px;font-weight:650;letter-spacing:1px;overflow-wrap:anywhere}a{color:#85caff}dl{display:grid;grid-template-columns:145px 1fr;gap:10px;margin-bottom:0}dt{color:#a4b4c4}dd{margin:0;overflow-wrap:anywhere}code{font-family:ui-monospace,Consolas,monospace}.warning{border-left:3px solid #eac577;color:#efdcae}.foot{font-size:13px;color:#a4b4c4}#health{min-height:1.6em}button{border:1px solid #487992;border-radius:7px;padding:7px 14px;background:#263f52;color:#e5edf4;cursor:pointer}
+@media(max-width:480px){body{padding:24px 14px}section{padding:16px}.ip{font-size:29px}dl{grid-template-columns:120px 1fr}}
+select,input{box-sizing:border-box;width:100%;margin:6px 0 16px;padding:12px;border-radius:8px;border:1px solid #487992;background:#101820;color:#e5edf4;font:inherit}label{display:block}.row{display:flex;gap:10px;flex-wrap:wrap}button:disabled{opacity:.5;cursor:wait}pre{overflow-x:auto;line-height:1.7;font-size:13px;background:#101820;padding:12px;border-radius:8px}[hidden]{display:none!important}.hint{color:#a4b4c4;font-size:14px}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:0 16px}.grid label{font-size:14px}.danger{background:#663b36;border-color:#c57565}
+</style>
+</head><body>
+<header><h1>Chime</h1><span class="tag" id="mode">正在初始化</span></header>
+<p class="intro">SigmaStudio+ 3.4.0 → ESP32-S31 → ADAU1451 · <a href="#outputs">声学标定 · 输出切换 ↓</a></p>
+<section aria-label="设备地址"><div class="label">设备 IP</div><div class="ip"><code id="ip">{{DEVICE_IP}}</code></div>
+<dl><dt>网页地址</dt><dd><a id="web-url" href="/">当前设备</a></dd><dt>mDNS</dt><dd><a id="mdns-url" href="http://chime.local/">chime.local</a></dd>
+<dt>TCP bridge</dt><dd><code id="tcp">等待 Wi-Fi 连接</code></dd><dt>Wi-Fi 状态</dt><dd id="network-state">读取中…</dd></dl></section>
+<section id="setup" hidden aria-label="Wi-Fi 配网">
+<h2>连接家庭 Wi-Fi</h2><p class="hint">自动扫描附近网络，选择 SSID 后输入密码，无需手动输入网络名。隐藏网络、企业认证与 WEP 暂不支持。</p>
+<form id="wifi-form"><label for="ssid">附近 Wi-Fi</label><select id="ssid" required><option value="">正在搜索…</option></select>
+<p class="hint" id="scan-state">正在读取扫描结果…</p><label for="password">Wi-Fi 密码</label><input id="password" type="password" autocomplete="new-password" maxlength="64" placeholder="所选网络的密码">
+<div class="row"><button id="connect" type="submit">连接并保存</button><button id="scan" type="button">重新搜索</button></div></form>
+<p id="setup-result" role="status" aria-live="polite"></p><p class="hint">仅在连接成功并获取 IP 后保存。失败不会覆盖原配置。手机如提示此热点无互联网，请选择继续连接。</p></section>
+<section id="success" hidden><h2>Wi-Fi 已连接</h2><p>配置已保存。设置热点将在约 15 秒后关闭。请将手机切换到刚才选择的 Wi-Fi，再打开 <a href="http://chime.local/">chime.local</a> 或上方设备 IP。</p></section>
+<section aria-label="DSP 状态"><dl><dt>TCP 会话</dt><dd id="bridge">未连接</dd><dt>累计执行请求</dt><dd id="requests">0</dd><dt>最近请求结果</dt><dd id="result">尚无请求</dd><dt>功放</dt><dd id="amp-state">关闭 · PDN 保持低电平</dd><dt>音频验证</dt><dd>未验收 · 可手动触发正弦测试</dd></dl>
+<p id="health" role="status" aria-live="polite">正在读取状态…</p><button id="refresh" type="button">刷新状态</button></section>
+<section aria-label="DSP 寄存器诊断"><h2>DSP 寄存器诊断</h2>
+<p class="hint">开机自动加载基础工程；DSP 就绪且未播放时可点击读取。SS+ 操作由同一 owner 串行执行。只读固定的 19 个寄存器，不修改配置、不复位、不发声；播放中不可读取。请暂停 SS+ 操作，避免下载/调参打断快照。页面自动刷新仅获取缓存，不自动访问 DSP。</p>
+<button id="dsp-read" type="button" disabled>读取 DSP 状态</button>
+<p id="dsp-state" role="status" aria-live="polite">尚未读取。</p>
+<dl><dt>DSP PLL</dt><dd id="dsp-pll">未读取</dd><dt>DSP 核心</dt><dd id="dsp-core">未读取</dd><dt>ASRC0</dt><dd id="dsp-asrc">未读取</dd></dl>
+<p id="dsp-hint" class="hint">有 BCLK/LRCLK 信号不等于 ASRC 已锁定，还需核对配置与实际频率。</p>
+<pre id="dsp-dump">点击上方按钮后，此处显示十六进制寄存器快照，可直接选中复制。</pre></section>
+<section><h2>USB / 蓝牙单音源</h2>
+<p id="source-state" role="status">正在读取音源状态…</p>
+<div class="row"><button id="source-resume" type="button" disabled>恢复自动播放</button><button id="source-stop" type="button" class="danger">停止全部音源</button></div>
+<p class="hint">手机配对“Chime Bluetooth”（SBC / AAC-LC / aptX / aptX HD / Android Opus / LDAC）。A2DP 连接即选蓝牙，暂停仍占源；断开后回 USB，无需电脑重开播放器。STOP 后须点击恢复，重连不解除停音。蓝牙新连接初始 −30 dB，手机绝对音量可独立调整；测试前先降低手机和电脑音量。SS 外部工程仍只允许手动 USB 试听。SBC 已确认出声；AAC、新增 vendor codec、自动切源及 SRC/共存仍需实板验收。LHDC V5 使用统一 reference codec 后端，当前默认启用，仅支持 44.1/48 kHz、PCM16、256–500 kbps，不含 V2/V3、无损或高采样率；尚未通过手机/音乐实板验收。LDAC 为 44.1/48 kHz 双声道、输出 PCM16（不广播 88.2/96 kHz）；aptX HD 当前转为 16-bit PCM；Opus 仅 Android 48 kHz / 20 ms 立体声，不含 PipeWire Opus 05。</p></section>
+<section><h2>USB Audio</h2><p>电脑连接 USB1，选择“Chime USB Audio”，48 kHz 双声道 16-bit。可使用电脑上的声学测量软件发送扫频、噪声或音乐，再选择实际发声的输出。USB 输入已取消固定 1/8 衰减，系统音量 0 dB 时可送满幅 PCM；尚无功率 limiter。功放数字音量为 0 dB，模拟增益为 −8 dB；当前 DSP 仍保留工程各支路增益。取消 USB 固定衰减会提高电平，测试前先降低主机电平至少 18 dB，从小信号开始。SS+ 下载/写参数时先停音；下载后可手动启用外部工程 USB 试听。断开连接保留 RAM 工程，重启恢复内置工程。请先降低电脑音量。</p></section>
+<section aria-label="SS 调音试听"><h2>SS 调音 · USB 试听</h2>
+<p class="hint">先降低电脑音量，再由 SS 下载兼容本板 48 kHz I²S / ASRC0 的工程。下载完成后选择功放组并手动启用试听；不写外部工程的 Gain 参数。L/R 单独隔离、分频和限幅由 SS 工程负责。Sub 是双通道 BTL，两个独立喇叭。</p>
+<label for="tuning-banks">试听功放组</label><select id="tuning-banks"><option value="1">L+R 功放</option><option value="2">Sub 功放（两个喇叭）</option><option value="3">L+R+Sub 功放</option></select>
+<div class="row"><button id="tuning-start" type="button" disabled>启用外部工程 USB 试听</button><button id="tuning-stop" type="button" class="danger">停止试听</button><button id="tuning-restore" type="button" disabled>恢复内置配置</button></div>
+<p id="tuning-state" role="status" aria-live="polite">读取中…</p>
+<p class="warning">任意 SS 写操作先停音并撤销试听授权，改参后须再次点击启用；读操作不中断试听。任意工程的无缝实时 Safeload 尚不支持，未知 Safeload 请求会被拒绝。SS 断开后保留 RAM 但停止试听；恢复内置配置会断开 SS 并覆盖 RAM 工程，不写 EEPROM。没有通用功率保护，请只做低电平测试。</p></section>
+<section id="outputs" aria-label="声学标定输出切换">
+<h2>输出切换 <span class="tag">声学标定</span></h2>
+<p class="hint">选择实际喇叭输出，不是选择 USB 输入声道。内置工程的滤波、混音和增益以当前编译结果为准；L/R/Sub 对应本板的物理输出。选择后点击应用，切换过程会短暂中断声音。</p>
+<label for="output-mode">输出模式</label><select id="output-mode"><option value="1">L</option><option value="2">R</option><option value="3">L+R</option><option value="4">Sub</option><option value="7" selected>L+R+Sub</option></select>
+<p id="output-current" class="hint">当前输出：读取中…</p>
+<div class="row"><button id="output-apply" type="button" disabled>应用输出模式</button><button id="output-stop" type="button" class="danger">立即停止</button></div>
+<p id="output-state" role="status" aria-live="polite">只选择模式不会发声，也不会启动测试。</p>
+<p class="warning">滤波和保护取决于当前 DSP 工程，固件不验证功率或位移安全。L/R/Sub 启用时恢复内置工程各自的编译增益，未选支路置零，不强制改为 1.0。请从低电平开始；DSP 衰减不是功率 limiter，也不代表声压或功率已匹配。模式只保存在运行内存，重启回到 L+R+Sub；外部 SS 工程下不可使用此处内置绑定 Gain 地址切换。</p>
+<p class="hint">应用时先关闭两颗功放，再写入并读回输出增益；仅唤醒所选功放。原本正在播放的 USB / 蓝牙会重新缓冲并淡入恢复；空闲、已停止或有限时长测试不会自动重播。点击停止后，需要点击“恢复自动播放”；电脑重开流或手机重连不会解除停音。</p>
+</section>
+<section aria-label="正弦声音测试"><h2>短正弦测试</h2>
+<p class="hint" id="sound-description">按当前已应用输出播放 3 秒，含淡入淡出。L/R 模式：1 kHz / −18 dBFS；含 Sub 的模式：100 Hz / −30 dBFS。功放数字音量 0 dB，模拟增益 −8 dB。100 Hz 不代表单元位移安全；正式声学测量请用 USB 输入，先降低音量。</p>
+<div class="row"><button id="sound-start" type="button" disabled>播放 3 秒</button><button id="sound-stop" type="button">立即停止</button></div>
+<p id="sound-state" role="status">尚未开始。未完成实板音频验收。</p></section>
+<section class="warning">DSP 控制仅在已连接路由器的 STA 模式开放。SS+ 连接时暂停 USB 并独占 DSP；断开后自动恢复内置基础工程。独立 USB 播放不依赖 Wi-Fi。网页刷新不占用 bridge 会话。仅使用可信的本地 Wi-Fi，不执行 EEPROM 操作。</section>
+<p class="foot">初始化完成后不再有 15 分钟服务关闭限制。手机自动弹出登录页由系统决定；未弹出可打开 http://192.168.4.1/。HTTPS / HSTS / 加密 DNS 无法强制跳转。</p>
+<noscript><p>当前设备 IP 已显示；Wi-Fi 扫描与配置需要启用 JavaScript。</p></noscript>
+<script>
+'use strict';
+const el=id=>document.getElementById(id);
+let busy=false,submitting=false,scanning=false,network=null,scanData={generation:null,networks:[]};
+let deviceStatus=null,dspCache=null,dspSubmitting=false;
+async function json(url,options={}){
+  // Captive-portal WebViews may lack AbortSignal.timeout even when fetch works.
+  const controller=typeof AbortController!=='undefined'?new AbortController():null;
+  const timer=controller?setTimeout(()=>controller.abort(),5000):null;
+  try{
+    const response=await fetch(url,{cache:'no-store',...(controller?{signal:controller.signal}:{}),...options});
+    if(!response.ok)throw new Error('HTTP '+response.status);
+    return await response.json();
+  }finally{if(timer!==null)clearTimeout(timer);}
+}
+function renderStatus(s){
+  deviceStatus=s;
+  const sourceName=value=>value==='bluetooth'?'蓝牙':value==='usb'?'USB':'无';
+  el('source-state').textContent='选中 '+sourceName(s.selected_source)+' · 输出 '+sourceName(s.rendering_source)+
+    (s.source_stopped?' · 已手动停音 / 调试锁定':'')+' · 蓝牙 '+(s.bt_available?(s.bt_connected?(s.bt_playing?(s.bt_stream_state===4?'连接/等待音频恢复':s.bt_stream_state===1?'连接/缓冲中':s.bt_stream_state===5?'连接/音频故障':s.rendering_source==='bluetooth'?'连接/播放':'连接/等待播放'):'连接/暂停'):'未连接'):'不可用')+
+    (s.bt_rate?' · '+(s.bt_codec||'none')+' '+s.bt_rate+' Hz':'')+(s.bt_error?' · 错误 '+s.bt_error:'');
+  el('source-resume').disabled=!s.station_connected||!s.dsp_default_ready||!!s.dsp_external||!!s.bridge_connected||!!s.amplifiers_enabled||!!s.output_pending||!!s.tuning_pending;
+  outputRender();
+  tuningRender();
+  el('ip').textContent=s.ip;el('web-url').textContent=s.web_url;el('web-url').href=s.web_url;
+  el('mdns-url').textContent=s.hostname;el('mdns-url').href='http://'+s.hostname+'/';
+  el('tcp').textContent=s.tcp_address;el('bridge').textContent=s.dsp_external?(s.bridge_connected?'SS+ 外部工程 · 已连接':'SS+ 外部工程 · RAM 保留'):s.bridge_connected?'SS+ 调试':s.dsp_default_ready?'基础工程就绪 · 无需 SS+':'DSP 未就绪';
+  el('amp-state').textContent=s.amplifiers_enabled?(s.dsp_external?'外部工程 '+outputName(s.tuning_armed):outputName(s.output_mode))+' 播放中':'关闭 · PDN 保持低电平';
+  el('sound-start').disabled=!outputAvailable()||!!s.amplifiers_enabled||outputDirty&&Number(el('output-mode').value)!==s.output_mode;
+  el('sound-state').textContent=s.amplifiers_enabled?'正在播放：USB / 蓝牙为持续播放，正弦测试约 3 秒后自动停止。':s.sound_result?'测试停止/未启动，错误 '+s.sound_result+'，检查寄存器 0x'+Number(s.sound_failed_reg||0).toString(16)+' 及串口日志。':s.sound_attempted?'当前停止。完成一轮不代表音频验收通过，请确认是否听到声音。':'尚未开始。未完成实板音频验收。';
+  el('requests').textContent=String(s.requests);el('result').textContent=s.requests?(s.last_result===0?'0 · 成功':String(s.last_result)+' · 失败'):'尚无请求';
+}
+function dspButton(){
+  el('dsp-read').disabled=dspSubmitting||!!dspCache?.busy||!(deviceStatus?.bridge_connected||deviceStatus?.dsp_default_ready||deviceStatus?.dsp_external)||!!deviceStatus?.amplifiers_enabled;
+}
+function renderDsp(s){
+  dspCache=s;dspButton();
+  const rows=Array.isArray(s.registers)?s.registers:[];
+  const get=address=>{const r=rows.find(r=>r.address===address);return r?.valid?r.value:null;};
+  const hex=n=>Number(n).toString(16).padStart(4,'0').toUpperCase();
+  const pll=get(0xF004),core=get(0xF405),asrc=get(0xF580);
+  el('dsp-pll').textContent=pll===null?'未读取':(pll&1?'已锁定':'未锁定')+' · 0x'+hex(pll);
+  const states=['停止','正常运行','暂停','Sleep（等待下一采样）','Stalled（短暂等待资源）'];
+  el('dsp-core').textContent=core===null?'未读取':(states[core&7]||'未知状态')+' · 0x'+hex(core);
+  el('dsp-asrc').textContent=asrc===null?'未读取':(asrc&1?'已锁定':'未锁定')+' · F580=0x'+hex(asrc);
+  const stale=s.present&&(!s.current||!s.session_connected);
+  el('dsp-state').textContent=s.busy?'读取已排队/正在执行…':!s.present?'尚未读取。':(stale?'快照已过期（会话或 DSP 配置已变化），请重新读取。':'快照 #'+s.generation+' · 设备启动后 '+s.captured_ms+' ms · ')+(s.complete?'读取完成。':'读取未完成：'+s.result_name+' ('+s.result+')，未读取项不代表零。');
+  if(s.present)el('dsp-dump').textContent='快照 #'+s.generation+(stale?' [已过期]':'')+' · result='+s.result+'\n'+rows.map(r=>'0x'+hex(r.address)+' '+String(r.name)+' = '+(r.valid?'0x'+hex(r.value):r.error?'读取失败 ('+r.error+')':'未读取')).join('\n');
+  let hint='只读诊断结果不代表音频验收通过。';
+  if(pll!==null&&!(pll&1))hint='DSP PLL 未锁定：仅读取 PLL 配置，跳过依赖时钟的寄存器。';
+  else if(asrc!==null&&!(asrc&1)){
+    const power=get(0xF050),input=get(0xF100),rate=get(0xF140);
+    if(power!==null&&(power&0x0501)!==0x0501)hint='ASRC0 未锁定：F050 的 SIN0 / ASRC Bank0 / Clock Generator1 电源未全部启用。';
+    else if(input!==null&&input!==1)hint='ASRC0 未锁定：F100 与最小工程的串行输入 CH0/1（0001）不符。';
+    else if(rate!==null&&(rate&15)!==5)hint='ASRC0 未锁定：F140 与最小工程的 DSP START_PULSE 目标（0005）不符。';
+    else hint='ASRC0 未锁定：继续核对 F200 输入格式、F401 目标采样率，以及 DSP 输入端 BCLK≈3.072MHz / LRCLK≈48kHz。不要跳过锁定检查。';
+  }
+  el('dsp-hint').textContent=(stale?'以下解释针对旧快照，不代表当前状态。':'')+hint;
+}
+async function readDsp(){
+  if(dspSubmitting)return;dspSubmitting=true;dspButton();
+  try{await json('/api/dsp/status',{method:'POST',headers:{'Content-Type':'application/json','X-Chime-DSP':'1'},body:'1'});el('dsp-state').textContent='读取已提交，等待 bridge 空闲…';await refresh();}
+  catch(error){el('dsp-state').textContent='读取提交失败（'+error.message+'），请保持 SS+ 连接、停止播放后重试。';}
+  finally{dspSubmitting=false;dspButton();}
+}
+el('dsp-read').addEventListener('click',readDsp);
+async function soundCommand(channel){
+  el('sound-start').disabled=true;
+  try{await json('/api/sound',{method:'POST',headers:{'Content-Type':'application/json','X-Chime-Sound':'1'},body:String(channel)});el('sound-state').textContent=channel?'已提交，等待时钟/故障检查…':'已提交停止。';}
+  catch(error){el('sound-state').textContent='提交失败：'+error.message;}
+}
+let tuningSubmitting=false;
+function tuningRender(){
+  const s=deviceStatus;
+  el('tuning-start').disabled=tuningSubmitting||!s?.station_connected||!s?.dsp_external||!!s?.tuning_pending;
+  el('tuning-restore').disabled=tuningSubmitting||!s?.station_connected||!s?.dsp_external||!!s?.tuning_pending;
+  el('tuning-state').textContent=!s?'设备离线/未读取。':s.tuning_pending?'请求已排队/执行中…':s.tuning_result?'请求失败：'+s.tuning_result+'，请检查串口/工程时钟及格式。':!s.dsp_external?'使用内置工程。':s.tuning_armed?'外部工程已授权：'+outputName(s.tuning_armed)+'；主机播放时试听。':'外部工程 RAM 保留；试听未授权，下载/改参完成后手动启用。';
+}
+async function tuningPost(command){
+  tuningSubmitting=true;tuningRender();
+  try{await json('/api/tuning',{method:'POST',headers:{'Content-Type':'application/json','X-Chime-Tuning':'1'},body:String(command)});el('tuning-state').textContent='已提交；等待设备确认。';}
+  catch(e){el('tuning-state').textContent='未完成：'+e.message;}
+  finally{tuningSubmitting=false;}
+}
+el('tuning-start').addEventListener('click',()=>tuningPost(Number(el('tuning-banks').value)));
+el('tuning-restore').addEventListener('click',()=>tuningPost(4));
+el('tuning-stop').addEventListener('click',()=>soundCommand(0));
+el('sound-start').addEventListener('click',()=>soundCommand(3));
+el('sound-stop').addEventListener('click',()=>soundCommand(0));
+el('source-stop').addEventListener('click',()=>soundCommand(0));
+el('source-resume').addEventListener('click',async()=>{
+  try{await json('/api/sound',{method:'POST',headers:{'Content-Type':'application/json','X-Chime-Sound':'1'},body:JSON.stringify('resume')});await refresh();}
+  catch(error){el('source-state').textContent='恢复失败：'+error.message;}
+});
+function renderNetwork(n){
+  network=n;const succeeded=n.phase==='connected';
+  el('setup').hidden=!n.setup||succeeded;el('success').hidden=!succeeded;
+  el('mode').textContent=n.setup?'AP 配网模式':n.online?'STA 在线':'连接中';
+  el('network-state').textContent=n.online?'已连接 '+n.ssid:n.connecting?'正在连接 '+n.ssid:succeeded?'已获取 IP，配置已保存':n.setup?'请选择 Wi-Fi':'正在连接已保存的 Wi-Fi';
+  el('connect').disabled=n.connecting||submitting;el('scan').disabled=n.connecting;
+  if(n.phase==='failed'||n.phase==='save_failed')el('setup-result').textContent=n.phase==='save_failed'?'连接成功但保存失败，请重试并保留设备日志。':'连接失败或超时，请检查密码、信号及路由器设置后重试。（错误 '+n.error+'）';
+  if(n.connecting)el('setup-result').textContent='正在连接并获取 IP，请等待，最长约 30 秒…';
+}
+function renderScan(data){
+  const previous=scanData.networks.find(n=>String(n.id)===el('ssid').value)?.ssid;
+  if(data.generation!==scanData.generation){
+    scanData=data;el('ssid').replaceChildren();const prompt=document.createElement('option');prompt.value='';prompt.textContent=data.scanning?'正在扫描，请稍候…':data.error?'扫描失败，请重新搜索':data.networks.length?'请选择附近 Wi-Fi':'未找到网络，请重新搜索';el('ssid').append(prompt);
+    for(const n of data.networks){const option=document.createElement('option');option.value=String(n.id);option.textContent=n.ssid+' · '+n.rssi+' dBm'+(n.secure?' · 加密':' · 开放网络')+(n.supported?'':' · 不支持');option.disabled=!n.supported;el('ssid').append(option);}
+    const same=data.networks.find(n=>n.ssid===previous&&n.supported);
+    if(same)el('ssid').value=String(same.id);else {el('ssid').value='';el('password').value='';}
+    selection();
+  }
+  el('ssid').children[0].textContent=data.scanning?'正在扫描，请稍候…':data.error?'扫描失败，请重新搜索':data.networks.length?'请选择附近 Wi-Fi':'未找到网络，请重新搜索';
+  el('scan-state').textContent=data.error?'扫描失败：'+(data.error_name||'error')+' ('+data.error+')，请点击重新搜索。':data.scanning?'正在扫描附近 Wi-Fi…':data.networks.length?'找到 '+data.networks.length+' 个网络；可点击重新搜索。':'尚未找到可见网络，扫描期间请稍候，或点击重新搜索。';
+}
+function selection(){const n=scanData.networks.find(n=>String(n.id)===el('ssid').value);el('password').disabled=!!n&&!n.secure;if(n&&!n.secure)el('password').value='';}
+async function scan(force=false){
+  if(scanning||submitting||!network?.setup||network.connecting||network.phase==='connected')return;
+  scanning=true;try{renderScan(await json(force?'/api/scan?refresh=1':'/api/scan'));}catch(error){if(!scanData.networks.length)el('ssid').children[0].textContent='无法读取网络列表，请重新搜索';el('scan-state').textContent='扫描读取失败（'+error.message+'），请确认仍连接设置热点并通过 http://192.168.4.1/ 访问。';}finally{scanning=false;}
+}
+async function refresh(){
+  if(busy)return;busy=true;
+  // Provisioning must not depend on mDNS/status succeeding, nor issue parallel
+  // requests that compete with Android/iOS captive probes for HTTP sockets.
+  let issue='';
+  try{renderNetwork(await json('/api/network'));await scan();}
+  catch(error){issue='网络设置读取失败（'+error.message+'）。';}
+  try{renderStatus(await json('/api/status'));}
+  catch(error){deviceStatus=null;outputRender();tuningRender();el('source-resume').disabled=true;el('source-state').textContent='音源状态不可用，禁止恢复播放。';el('sound-start').disabled=true;issue+='设备状态读取失败（'+error.message+'），以上信息可能已过期。';}
+  try{renderDsp(await json('/api/dsp/status'));}
+  catch(error){el('dsp-state').textContent='缓存读取失败（'+error.message+'），原快照可能已过期。';dspCache=null;dspButton();}
+  el('health').textContent=issue||'状态已更新 · 每 2 秒自动刷新';
+  busy=false;
+}
+async function submit(event){
+  event.preventDefault();if(submitting||!network?.token||network.connecting)return;
+  const n=scanData.networks.find(n=>String(n.id)===el('ssid').value&&n.supported);
+  if(!n){el('setup-result').textContent='请先从扫描结果选择一个 Wi-Fi。';return;}
+  submitting=true;el('connect').disabled=true;el('setup-result').textContent='正在提交…';
+  try{await json('/api/wifi',{method:'POST',headers:{'Content-Type':'application/json','X-Chime-Token':network.token},body:JSON.stringify({generation:scanData.generation,id:n.id,password:el('password').value})});el('password').value='';el('setup-result').textContent='已提交，正在连接，请等待…';}
+  catch(error){el('setup-result').textContent='提交失败：扫描结果可能已更新、密码格式不正确或设备正忙，请刷新后重试。';}
+  finally{submitting=false;el('connect').disabled=false;}
+}
+// Calibration has no autonomous playback, external libraries or persistent credentials.
+const outputNames={1:'L',2:'R',3:'L+R',4:'Sub',7:'L+R+Sub'};
+let outputDirty=false,outputSubmitting=false,outputAwaiting=0,outputSubmittedAt=0;
+function outputName(value){return outputNames[value]||'未确认';}
+function outputAvailable(){
+  const s=deviceStatus;
+  return !!s?.station_connected&&!!s?.dsp_default_ready&&!s?.bridge_connected&&!s?.dsp_external&&!s?.tuning_pending&&
+    Object.prototype.hasOwnProperty.call(outputNames,s.output_mode)&&!s.output_pending&&!outputSubmitting&&!outputAwaiting;
+}
+function outputRender(){
+  const s=deviceStatus;
+  el('output-current').textContent='当前已应用：'+outputName(s?.output_mode)+(s?.dsp_external||s?.bridge_connected?'（SS+ 外部工程，输出状态不受本页控制）':'');
+  if(outputAwaiting&&s&&!s.output_pending){
+    if(s.output_mode===outputAwaiting&&s.output_result===0){
+      outputDirty=false;outputAwaiting=0;el('output-state').textContent='已应用 '+outputName(s.output_mode)+'。空闲时不会启动播放。';
+    }else if(s.output_result||Date.now()-outputSubmittedAt>10000){
+      outputAwaiting=0;el('output-state').textContent='切换未成功，当前选择未生效。错误 '+(s.output_result||'确认超时')+'；请检查设备状态后手动重试。';
+    }
+  }
+  if(!outputDirty&&Object.prototype.hasOwnProperty.call(outputNames,s?.output_mode))el('output-mode').value=String(s.output_mode);
+  el('output-mode').disabled=!s?.station_connected||!s?.dsp_default_ready||!!s?.bridge_connected||!!s?.dsp_external||!!s?.tuning_pending||!!s?.output_pending||outputSubmitting||!!outputAwaiting;
+  el('output-apply').disabled=!outputAvailable()||!Object.prototype.hasOwnProperty.call(outputNames,el('output-mode').value)||Number(el('output-mode').value)===s?.output_mode;
+  if(!s)el('output-current').textContent='当前输出未确认：设备状态不可用，禁止切换。';
+  else if(s.output_pending)el('output-current').textContent+=' · 正在切换至 '+outputName(s.output_pending);
+  else if(!Object.prototype.hasOwnProperty.call(outputNames,s.output_mode))el('output-current').textContent='固件未提供输出模式，请升级后使用。';
+}
+async function applyOutput(){
+  if(el('output-apply').disabled)return;
+  const mode=Number(el('output-mode').value);
+  outputSubmitting=true;outputRender();el('sound-start').disabled=true;
+  try{
+    await json('/api/output',{method:'POST',headers:{'Content-Type':'application/json','X-Chime-Output':'1'},body:String(mode)});
+    outputAwaiting=mode;outputSubmittedAt=Date.now();el('output-state').textContent='切换请求已提交，等待设备应用确认…';
+    await refresh();
+  }catch(error){el('output-state').textContent='切换提交或确认失败：'+error.message+'；请查看当前已应用模式，不会自动重试。';}
+  finally{outputSubmitting=false;outputRender();if(deviceStatus)renderStatus(deviceStatus);}
+}
+el('output-mode').addEventListener('change',()=>{outputDirty=true;outputRender();if(deviceStatus)renderStatus(deviceStatus);});
+el('output-apply').addEventListener('click',applyOutput);
+el('output-stop').addEventListener('click',()=>soundCommand(0));
+outputRender();
+
+el('ssid').addEventListener('change',selection);el('wifi-form').addEventListener('submit',submit);
+el('scan').addEventListener('click',()=>scan(true));el('refresh').addEventListener('click',refresh);
+refresh();setInterval(()=>{if(!document.hidden)refresh();},2000);
+</script></body></html>

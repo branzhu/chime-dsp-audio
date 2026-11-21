@@ -1,0 +1,12 @@
+{
+  "encoder_repository": "https://android.googlesource.com/platform/external/libldac",
+  "encoder_commit": "e8ff0f96f26b84b47711c549e0d60baa425cd70e",
+  "encoder_license": "Apache-2.0, test-only encoder not linked to firmware",
+  "generator": "software/tests/bluetooth/generate_ldac_adaptive_fixtures.c",
+  "generator_sha256": "f317d2ea35c8b805ad1b80fbce2453c317dc93ec830e8d5fb1a1b927a7bb2596",
+  "compiler": "MSVC 2022 x64 /O2; __attribute__ syntax shim only",
+  "content": "Synthetic PCM16 dual tone, 720 blocks of 128 stereo samples at 48k, live quality changes every24 blocks; HQ/SQ/MQ/Q0/Q1, four flushes. Records: u16 LE raw bytes, u8 encoder frame count, raw LDAC frames. Includes mixed-length transition packets and 21 packets with 5x132-byte frames, identical 05:aa:32:00 prefix/661-byte layout, NOT phone captured content.",
+  "files": {
+    "48000-abr.packets": "26776222382233a0febeaf3fce74dfe1e4a228f77e9f17139fa17e25f80d7410"
+  }
+}

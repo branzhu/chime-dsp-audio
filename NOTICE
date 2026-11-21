@@ -1,0 +1,20 @@
+Chime / DSP Audio
+Copyright 2026 Chime contributors
+
+Project-owned software and original DSP project contributions are licensed
+under the Apache License, Version 2.0. This notice does not claim ownership
+of third-party code, libraries, models, codec implementations or generated
+third-party content.
+
+License scope and exceptions: LICENSES/README.md
+Third-party attributions and unresolved permissions: THIRD_PARTY_NOTICES.md
+
+Original PCB design contributions in hardware/audio-dsp.epro2 are licensed
+under CERN-OHL-P-2.0. Project-authored public documentation and the four
+published mechanical exchange models are licensed under CC-BY-4.0.
+Branding assets and unpublished Creo source files are not included in these
+grants. Third-party materials retain their own terms; some imported reference
+code has unresolved permissions. No project license or disclaimer supplies
+missing third-party authorization, codec patent rights or certification.
+
+This NOTICE is informational and does not modify any license text.

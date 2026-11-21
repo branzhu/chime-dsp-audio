@@ -1,0 +1,11 @@
+{
+  "repository": "https://github.com/WillyBilly06/ESP32-A2DP-SINK-WITH-CODECS-UPDATED",
+  "commit": "0d85a975ec079d954f1bdd3e94d2fed70848c252",
+  "path": "esp-idf/components/bt/host/bluedroid/external/libfreeaptx/main",
+  "license": "LGPL-2.1-or-later per source/COPYING, NOT root CC0",
+  "files": {
+    "freeaptx.c": "6ed248b420ea7fe38db7a0b0a2c63f20f64556aa46323be4561edf06a0223b7f",
+    "freeaptx.h": "469fdce4ce03afb149f2be5496d75baa89e671d01dd6fcd5bdc2073013b2ad0e",
+    "COPYING": "1e7e6bae5a5bde32f1ae5a7c37a082d1ab03cf89354f7f936ac40be9e39a6531"
+  }
+}
