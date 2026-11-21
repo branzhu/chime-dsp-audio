@@ -3,6 +3,7 @@ from pathlib import Path
 import hashlib
 import importlib.util
 import json
+import re
 import tempfile
 import unittest
 
@@ -14,13 +15,32 @@ spec.loader.exec_module(export)
 
 class PublicExportTests(unittest.TestCase):
     def test_public_materials_and_pinned_metadata(self):
-        for name in sorted(export.LICENSE_FILES) + ['README.md', 'docs/build.md', 'hardware/audio-dsp.epro2',
+        for name in sorted(export.LICENSE_FILES) + ['README.md', 'README.zh-CN.md', 'docs/build.md', 'hardware/audio-dsp.epro2',
                      'mechanical/front.stp', 'mechanical/front.3mf',
                      'dsp/ADAU1451/ADAU145xSchematic_0/compiler_output.log',
                      'software/tests/fixtures/sigma/registers.json',
                      'software/components/chime_codec_reference/vendor/esp-idf/components/bt/host/bluedroid/external/libldac-dec/CMakeLists.orig']:
             with self.subTest(name=name):
                 self.assertTrue(export.is_public(name))
+
+    def test_bilingual_readmes_are_linked_and_required(self):
+        english = (ROOT / 'README.md').read_text(encoding='utf-8')
+        chinese = (ROOT / 'README.zh-CN.md').read_text(encoding='utf-8')
+        self.assertEqual(english.splitlines()[0], 'English | [简体中文](README.zh-CN.md)')
+        self.assertEqual(chinese.splitlines()[0], '[English](README.md) | 简体中文')
+        self.assertIn('## Features', english)
+        self.assertIn('## Licensing', english)
+        self.assertIn('## 能做什么', chinese)
+        self.assertIn('## 许可证', chinese)
+        for name, text in [('README.md', english), ('README.zh-CN.md', chinese)]:
+            for target in re.findall(r'\[[^\]]+\]\(([^)\s]+)\)', text):
+                if re.match(r'^[a-zA-Z]+:', target) or target.startswith('#'):
+                    continue
+                with self.subTest(readme=name, target=target):
+                    self.assertTrue((ROOT / target.split('#')[0]).exists())
+        with self.assertRaisesRegex(ValueError, 'Missing public files.*README.zh-CN.md'):
+            export.load_snapshot(ROOT, [name for name in export.inventory(ROOT)
+                                        if name != 'README.zh-CN.md'])
 
     def test_private_materials_are_not_publishable(self):
         for name in ['.git/config', 'mechanical/front.prt.11', 'mechanical/a.asm.2',
