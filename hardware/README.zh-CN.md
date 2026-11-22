@@ -6,6 +6,12 @@
 
 核心器件为 **ESP32-S31、ADAU1451 和两颗 TAS5825M**。使用前应将 `software/components/board_support/include/board_support.h` 中的固件引脚与 I²C 地址逐项对照实际 PCB。
 
+## 电路板实拍
+
+[查看顶面照片](photos/pcb-top.jpg)
+
+![Chime 电路板底面实拍](photos/pcb-bottom.jpg)
+
 ## 参考文件
 
 - [原理图 PDF](schematic.pdf)

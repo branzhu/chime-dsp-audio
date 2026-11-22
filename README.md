@@ -8,6 +8,8 @@ The board uses an ESP32-S31 for USB/Bluetooth audio and system control, an ADAU1
 
 This repository contains the firmware, SigmaStudio project, PCB design export, and enclosure models. It's an ongoing personal project, not a ready-to-build speaker kit.
 
+![Chime PCB, top side](hardware/photos/pcb-top.jpg)
+
 ## Hardware and audio path
 
 ```text
@@ -50,7 +52,7 @@ I haven't packaged a one-click flashing procedure. In particular, don't mix a ne
 | [`dsp/`](dsp/) | SigmaStudio project, generated data, ESP32 parameter bindings |
 | [`hardware/`](hardware/) | EasyEDA PCB project export, schematic and PCB PDFs, and BOM; **not** a Gerber package |
 | [`mechanical/`](mechanical/) | STEP / 3MF models for the satellite enclosure, rear panel, and feet |
-| [`scripts/`](scripts/) | Build, DSP sync, testing, and release helpers |
+| [`scripts/`](scripts/) | Build, DSP sync, and testing helpers |
 | [`tools/wireshark/`](tools/wireshark/) | SigmaDSP protocol analysis tools |
 | [`docs/`](docs/README.md) | User guides in English and Simplified Chinese |
 

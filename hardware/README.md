@@ -6,6 +6,12 @@ English | [简体中文](README.zh-CN.md)
 
 The board uses an **ESP32-S31**, an **ADAU1451**, and **two TAS5825M** amplifiers. Check firmware pin assignments and I²C addresses in `software/components/board_support/include/board_support.h` against the PCB before use.
 
+## PCB photos
+
+[Top side](photos/pcb-top.jpg)
+
+![Chime PCB, bottom side](photos/pcb-bottom.jpg)
+
 ## Reference files
 
 - [Schematic PDF](schematic.pdf)

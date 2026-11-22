@@ -8,6 +8,8 @@ Chime 是我折腾的一套桌面 2.1 音箱，起点是一台在架子上吃灰
 
 仓库里有固件、SigmaStudio 工程、PCB 设计导出文件和箱体模型。目前还是个人研发项目，不是一套拿到文件就能直接照着量产的成品方案。
 
+![Chime 电路板顶面实拍](hardware/photos/pcb-top.jpg)
+
 ## 硬件与音频链路
 
 ```text
@@ -50,7 +52,7 @@ idf.py --preview -C software build
 | [`dsp/`](dsp/) | SigmaStudio 工程、生成数据、ESP32 参数绑定 |
 | [`hardware/`](hardware/) | 嘉立创EDA 工程导出、原理图和 PCB 的 PDF、BOM；**不是** Gerber 制造包 |
 | [`mechanical/`](mechanical/) | 卫星箱、后面板和脚垫的 STEP / 3MF 模型 |
-| [`scripts/`](scripts/) | 构建、DSP 同步、测试及发布脚本 |
+| [`scripts/`](scripts/) | 构建、DSP 同步和测试脚本 |
 | [`tools/wireshark/`](tools/wireshark/) | SigmaDSP 协议分析工具 |
 | [`docs/`](docs/README.zh-CN.md) | 技术文档 |
 
