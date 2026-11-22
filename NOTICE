@@ -9,9 +9,10 @@ third-party content.
 License scope and exceptions: LICENSES/README.md
 Third-party attributions and unresolved permissions: THIRD_PARTY_NOTICES.md
 
-Original PCB design contributions in hardware/audio-dsp.epro2 are licensed
-under CERN-OHL-P-2.0. Project-authored public documentation and the four
-published mechanical exchange models are licensed under CC-BY-4.0.
+Original PCB design contributions in the hardware project export, PDFs,
+and BOM are licensed under CERN-OHL-P-2.0. Project-authored public documentation
+and the original designs in the listed mechanical exchange files are licensed
+under CC-BY-4.0.
 Branding assets and unpublished Creo source files are not included in these
 grants. Third-party materials retain their own terms; some imported reference
 code has unresolved permissions. No project license or disclaimer supplies

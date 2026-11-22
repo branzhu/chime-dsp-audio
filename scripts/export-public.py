@@ -27,8 +27,11 @@ LICENSE_BLOCKER = 'Project license texts, scope and third-party notices are miss
 PUBLIC_FILES = PUBLIC_DOCS | LICENSE_FILES | {
     'README.md', 'README.zh-CN.md', '.gitattributes', '.gitignore', 'LICENSE.md',
     'hardware/README.md', 'hardware/README.zh-CN.md', 'hardware/audio-dsp.epro2',
-    'mechanical/front.stp', 'mechanical/back.stp',
-    'mechanical/front.3mf', 'mechanical/back.3mf',
+    'hardware/schematic.pdf', 'hardware/pcb.pdf', 'hardware/bom.xlsx',
+    'mechanical/satellite/front.stp', 'mechanical/satellite/front.3mf',
+    'mechanical/satellite/back.stp', 'mechanical/satellite/back.3mf',
+    'mechanical/back-panel/back-panel.stp', 'mechanical/back-panel/back-panel.3mf',
+    'mechanical/feet/feet.stp', 'mechanical/feet/feet.3mf',
     'software/README.md', 'software/CMakeLists.txt', 'software/dependencies.lock',
     'software/partitions.csv', 'software/sdkconfig', 'software/sdkconfig.defaults',
 }

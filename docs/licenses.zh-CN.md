@@ -9,8 +9,8 @@
 | 内容 | 许可证 / 边界 |
 | --- | --- |
 | 自有固件、网页、脚本、工具、测试程序，以及原创 DSP 工程配置贡献 | [Apache-2.0](../LICENSE)；排除第三方代码、库及生成物中第三方内容 |
-| PCB 工程 `hardware/audio-dsp.epro2` 中的原创设计贡献 | [CERN-OHL-P-2.0](../LICENSES/CERN-OHL-P-2.0.txt)，保留 Notices；嵌入第三方素材不自动纳入 |
-| 公开外壳 STEP / 3MF 的自有模型 | [CC-BY-4.0](../LICENSES/CC-BY-4.0.txt)，不提供或授权未发布 Creo 参数化源文件 |
+| 嘉立创EDA 工程导出、原理图和 PCB 的 PDF、BOM 中的原创设计贡献 | [CERN-OHL-P-2.0](../LICENSES/CERN-OHL-P-2.0.txt)，保留 Notices；嵌入第三方素材不自动纳入 |
+| 公开 STEP / 3MF 文件中的自有模型 | [CC-BY-4.0](../LICENSES/CC-BY-4.0.txt)，不提供或授权未发布 Creo 参数化源文件 |
 | 项目自撰公开文档 | CC-BY-4.0；保留署名、链接并标注修改；第三方引文与许可全文除外 |
 | Logo / 品牌素材、名称与商标 | 不纳入以上许可，不授予品牌背书或认证权利 |
 

@@ -48,8 +48,8 @@ I haven't packaged a one-click flashing procedure. In particular, don't mix a ne
 | --- | --- |
 | [`software/`](software/) | ESP-IDF firmware, components, host tests |
 | [`dsp/`](dsp/) | SigmaStudio project, generated data, ESP32 parameter bindings |
-| [`hardware/`](hardware/) | EasyEDA PCB export (`audio-dsp.epro2`); **not** a Gerber package |
-| [`mechanical/`](mechanical/) | STEP / 3MF enclosure models |
+| [`hardware/`](hardware/) | EasyEDA PCB project export, schematic and PCB PDFs, and BOM; **not** a Gerber package |
+| [`mechanical/`](mechanical/) | STEP / 3MF models for the satellite enclosure, rear panel, and feet |
 | [`scripts/`](scripts/) | Build, DSP sync, testing, and release helpers |
 | [`tools/wireshark/`](tools/wireshark/) | SigmaDSP protocol analysis tools |
 | [`docs/`](docs/README.md) | User guides in English and Simplified Chinese |
@@ -71,7 +71,7 @@ Different parts of this repository have different licenses:
 
 - My firmware and original DSP configuration contributions: [Apache-2.0](LICENSE).
 - My PCB design: [CERN-OHL-P-2.0](LICENSES/CERN-OHL-P-2.0.txt).
-- My documentation and the four published STEP / 3MF models: [CC BY 4.0](LICENSES/CC-BY-4.0.txt).
+- My documentation and the original designs in the listed STEP / 3MF files: [CC BY 4.0](LICENSES/CC-BY-4.0.txt).
 
 **Some imported LDAC and adapter code still has unresolved redistribution permissions.** The licenses above do not cover that code, other third-party material, or project branding. Please read [third-party notices](THIRD_PARTY_NOTICES.md) and [license scope](LICENSES/README.md) before reusing or redistributing it.
 

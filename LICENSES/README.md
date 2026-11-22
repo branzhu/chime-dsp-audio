@@ -5,8 +5,8 @@ Copyright 2026 Chime contributors。以下许可只授予项目贡献者有权�
 | 范围 | 许可证 | 边界 |
 | --- | --- | --- |
 | `software/`、`scripts/`、`tools/` 中的自有软件、测试生成程序及自有测试数据；`dsp/` 中原创工程配置与设计贡献 | [Apache-2.0](../LICENSE) | 排除引入的第三方代码、第三方测试流、厂商算法 / 库及其生成内容；不得以此覆盖第三方权利 |
-| `hardware/audio-dsp.epro2` 中的原创 PCB / 原理图设计贡献 | [CERN-OHL-P-2.0](CERN-OHL-P-2.0.txt) | 仅覆盖有权授权的设计贡献；第三方封装、模型、图片等维持原条款。相关 Notices 包括根 NOTICE、hardware/README.md 和 THIRD_PARTY_NOTICES.md |
-| `mechanical/front.stp`、`back.stp`、`front.3mf`、`back.3mf` 中的自有模型 | [CC-BY-4.0](CC-BY-4.0.txt) | 只授权这四份公开交换文件；不包含未发布的 Creo 参数化源文件及历史 |
+| `hardware/audio-dsp.epro2`、`schematic.pdf`、`pcb.pdf`、`bom.xlsx` 中的原创 PCB / 原理图设计贡献 | [CERN-OHL-P-2.0](CERN-OHL-P-2.0.txt) | 仅覆盖有权授权的设计贡献；第三方封装、模型、图片等维持原条款。相关 Notices 包括根 NOTICE、hardware/README.md 和 THIRD_PARTY_NOTICES.md |
+| `mechanical/` 下 `satellite/front`、`satellite/back`、`back-panel/back-panel`、`feet/feet` 对应的 `.stp` / `.3mf` 文件中的自有模型 | [CC-BY-4.0](CC-BY-4.0.txt) | 只授权列出的交换文件；不包含板卡装配参考、Creo 参数化源文件及历史 |
 | 项目自撰的根 README、公开 `docs/` 文档、各目录 README 和许可说明文字 | [CC-BY-4.0](CC-BY-4.0.txt) | 不覆盖第三方引文、上游 README、标准许可证全文或私人研发资料 |
 | `assets/branding/` 中的 Logo / 标识素材、项目名称及商标 | 不纳入上述许可 | 除法律允许或另行授权外不提供素材使用授权；不授予商标、官方背书或认证权利 |
 | 其他第三方材料 | 各自原许可或待确认 | 见 [THIRD_PARTY_NOTICES.md](../THIRD_PARTY_NOTICES.md)；授权未确认不等于可任意使用 |

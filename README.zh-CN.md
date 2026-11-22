@@ -48,8 +48,8 @@ idf.py --preview -C software build
 | --- | --- |
 | [`software/`](software/) | ESP-IDF 固件、组件及主机测试 |
 | [`dsp/`](dsp/) | SigmaStudio 工程、生成数据、ESP32 参数绑定 |
-| [`hardware/`](hardware/) | EasyEDA PCB 导出文件 `audio-dsp.epro2`，**不是** Gerber 制造包 |
-| [`mechanical/`](mechanical/) | STEP / 3MF 箱体模型 |
+| [`hardware/`](hardware/) | 嘉立创EDA 工程导出、原理图和 PCB 的 PDF、BOM；**不是** Gerber 制造包 |
+| [`mechanical/`](mechanical/) | 卫星箱、后面板和脚垫的 STEP / 3MF 模型 |
 | [`scripts/`](scripts/) | 构建、DSP 同步、测试及发布脚本 |
 | [`tools/wireshark/`](tools/wireshark/) | SigmaDSP 协议分析工具 |
 | [`docs/`](docs/README.zh-CN.md) | 技术文档 |
@@ -71,7 +71,7 @@ idf.py --preview -C software build
 
 - 自己写的固件和原创 DSP 工程配置：[Apache-2.0](LICENSE)。
 - 自己设计的 PCB：[CERN-OHL-P-2.0](LICENSES/CERN-OHL-P-2.0.txt)。
-- 自有文档和四份公开的 STEP / 3MF 模型：[CC BY 4.0](LICENSES/CC-BY-4.0.txt)。
+- 自有文档和列出的 STEP / 3MF 文件中的原创模型：[CC BY 4.0](LICENSES/CC-BY-4.0.txt)。
 
 **部分引入的 LDAC 和适配代码，转发/再分发权限仍未完全确认。** 上面这些许可证不覆盖它们、其他第三方材料和项目标识。使用或重新分发前请看[第三方声明](THIRD_PARTY_NOTICES.md)与[许可范围](LICENSES/README.md)。
 

@@ -6,14 +6,17 @@
 
 # Binary and CAD assets
 *.3mf binary
+*.asm.* binary
 *.docx binary
 *.mdat binary
 *.pdf binary
 *.png binary
 *.prt.* binary
+*.sec.* binary
 *.stp binary
 *.step binary
 *.epro2 binary
+*.xlsx binary
 # Vendor DSP project/exports are SHA256-pinned byte-for-byte by manifest.json.
 # Preserve original CRLF bytes on add/checkout; normalizing breaks fresh builds.
 /dsp/ADAU1451.ssprj -text -whitespace

@@ -9,7 +9,7 @@ The project uses separate licenses for different materials; it does not relicens
 | Material | License / boundary |
 | --- | --- |
 | Project-owned firmware, web UI, scripts, tools, tests, and original DSP configuration contributions | [Apache-2.0](../LICENSE); excludes third-party code, libraries, and third-party content in generated outputs |
-| Original design contributions in `hardware/audio-dsp.epro2` | [CERN-OHL-P-2.0](../LICENSES/CERN-OHL-P-2.0.txt); retain Notices; embedded third-party materials are not automatically included |
+| Original design contributions in the EasyEDA project export, schematic and PCB PDFs, and BOM | [CERN-OHL-P-2.0](../LICENSES/CERN-OHL-P-2.0.txt); retain Notices; embedded third-party materials are not automatically included |
 | Project-owned models in the published STEP / 3MF files | [CC-BY-4.0](../LICENSES/CC-BY-4.0.txt); does not supply or license unpublished native Creo sources |
 | Project-authored public documentation | CC-BY-4.0; retain attribution and links, and identify changes; third-party quotations and license texts are excluded |
 | Logos / branding assets, names, and trademarks | Excluded from the above grants; no endorsement or certification rights granted |

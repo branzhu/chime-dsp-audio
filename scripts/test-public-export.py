@@ -16,7 +16,7 @@ spec.loader.exec_module(export)
 class PublicExportTests(unittest.TestCase):
     def test_public_materials_and_pinned_metadata(self):
         for name in sorted(export.LICENSE_FILES) + ['README.md', 'README.zh-CN.md', 'docs/build.md', 'hardware/audio-dsp.epro2',
-                     'mechanical/front.stp', 'mechanical/front.3mf',
+                     'mechanical/satellite/front.stp', 'mechanical/satellite/front.3mf',
                      'dsp/ADAU1451/ADAU145xSchematic_0/compiler_output.log',
                      'software/tests/fixtures/sigma/registers.json',
                      'software/components/chime_codec_reference/vendor/esp-idf/components/bt/host/bluedroid/external/libldac-dec/CMakeLists.orig']:
@@ -106,20 +106,29 @@ class PublicExportTests(unittest.TestCase):
                 with self.subTest(document=name, target=target):
                     self.assertTrue(path.exists())
         blobs = export.load_snapshot(ROOT, export.inventory(ROOT))
+        self.assertEqual({name for name in blobs if name.startswith('hardware/')}, {
+            'hardware/README.md', 'hardware/README.zh-CN.md', 'hardware/audio-dsp.epro2',
+            'hardware/schematic.pdf', 'hardware/pcb.pdf', 'hardware/bom.xlsx',
+        })
         self.assertEqual({name for name in blobs if name.startswith('mechanical/')},
-                         {f'mechanical/{part}.{extension}'
-                          for part in ('front', 'back') for extension in ('stp', '3mf')})
+                         {f'mechanical/{part}.{extension}' for part in (
+                             'satellite/front', 'satellite/back', 'back-panel/back-panel', 'feet/feet',
+                         ) for extension in ('stp', '3mf')})
 
     def test_private_materials_are_not_publishable(self):
-        for name in ['.git/config', 'mechanical/front.prt.11', 'mechanical/a.asm.2',
-                     'mechanical/a.drw', 'mechanical/nested/private.stp',
+        for name in ['.git/config', 'mechanical/satellite/front.prt.11',
+                     'mechanical/back-panel/pcb/pcb.asm.4', 'mechanical/back-panel/s2d0002.sec.1',
+                     'mechanical/back-panel/pcb/dsp-board.step', 'mechanical/satellite/dsp-board.step',
+                     'mechanical/back-panel/dsp-board.log', 'mechanical/back-panel/dsp-board_log.xml',
+                     'mechanical/front.stp', 'mechanical/satellite/private.stp',
                      'docs/PRD.md', 'mechanical/README.md', 'mechanical/README.zh-CN.md',
                      'docs/publishing.md', 'docs/publishing.zh-CN.md',
                      'LICENSES/private-contract.pdf', 'LICENSES/unreviewed.txt',
                      'docs/internal/software-development-history.md',
                      'docs/validation/trace.json', 'docs/third-party/adau145x-adi.pdf',
                      'docs/third-party/speaker.docx', 'data/recording.wav',
-                     'hardware/private-other-project.epro2', 'software/build/app.bin',
+                     'hardware/private-other-project.epro2', 'hardware/private.pdf',
+                     'hardware/private.xlsx', 'software/build/app.bin',
                      'software/managed_components/vendor.c', 'scripts/__pycache__/a.pyc',
                      'scripts/test.exe', 'software/main/.env', 'software/main/key.pem',
                      'software/main/.GIT/config', '../README.md', '/README.md',
@@ -173,8 +182,8 @@ class PublicExportTests(unittest.TestCase):
     def test_current_workspace_pins_and_required_files(self):
         blobs = export.load_snapshot(ROOT, export.inventory(ROOT))
         self.assertIn('hardware/audio-dsp.epro2', blobs)
-        self.assertIn('mechanical/front.stp', blobs)
-        self.assertNotIn('mechanical/front.prt.11', blobs)
+        self.assertIn('mechanical/satellite/front.stp', blobs)
+        self.assertNotIn('mechanical/satellite/front.prt.11', blobs)
         self.assertEqual({name for name in blobs if name.startswith('docs/')}, export.PUBLIC_DOCS)
         self.assertTrue(export.LICENSE_FILES <= blobs.keys())
         self.assertEqual(export.blockers(blobs), [export.CODEC_BLOCKER])
@@ -184,6 +193,9 @@ class PublicExportTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'Missing public files'):
             export.load_snapshot(ROOT, [name for name in export.inventory(ROOT)
                                         if name != 'LICENSES/CC-BY-4.0.txt'])
+        for name in ('hardware/bom.xlsx', 'mechanical/back-panel/back-panel.3mf'):
+            with self.subTest(name=name), self.assertRaisesRegex(ValueError, 'Missing public files'):
+                export.load_snapshot(ROOT, [path for path in blobs if path != name])
         changed = dict(blobs)
         key = 'dsp/esp32-bindings.json'
         changed[key] += b'changed'
