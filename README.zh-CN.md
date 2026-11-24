@@ -10,6 +10,8 @@ Chime 是我折腾的一套桌面 2.1 音箱，起点是一台在架子上吃灰
 
 ![Chime 电路板顶面实拍](hardware/photos/pcb-top.jpg)
 
+[阅读制作过程（英文）](https://branzhu.github.io/chime-dsp-audio/)
+
 ## 硬件与音频链路
 
 ```text

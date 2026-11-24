@@ -10,6 +10,8 @@ This repository contains the firmware, SigmaStudio project, PCB design export, a
 
 ![Chime PCB, top side](hardware/photos/pcb-top.jpg)
 
+[Read the build story](https://branzhu.github.io/chime-dsp-audio/)
+
 ## Hardware and audio path
 
 ```text
