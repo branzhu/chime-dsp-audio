@@ -190,3 +190,21 @@ Just for a little while.
 This project was developed by me, ChatGPT, and Codex. I handled the hardware, testing, soldering (unfortunately), and, most importantly, paid the bills. ChatGPT helped with the design and analysis, and regularly assured me that I was absolutely right. Codex wrote most of the firmware.
 
 The published firmware and design files are on GitHub: [chime-dsp-audio](https://github.com/branzhu/chime-dsp-audio). See the [license and third-party notes](https://github.com/branzhu/chime-dsp-audio/blob/main/docs/licenses.md) for what you can reuse and redistribute.
+
+<script src="https://giscus.app/client.js"
+        data-repo="branzhu/chime-dsp-audio"
+        data-repo-id="R_kgDOV2pizA"
+        data-category="Announcements"
+        data-category-id="DIC_kwDOV2pizM4DL_oK"
+        data-mapping="specific"
+        data-term="Chime Build Story"
+        data-strict="1"
+        data-reactions-enabled="1"
+        data-emit-metadata="0"
+        data-input-position="top"
+        data-theme="preferred_color_scheme"
+        data-lang="en"
+        data-loading="lazy"
+        crossorigin="anonymous"
+        async>
+</script>
