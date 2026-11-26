@@ -2,6 +2,8 @@
 
 # Chime
 
+[Read the build story →](https://branzhu.github.io/chime-dsp-audio/)
+
 Chime is my DIY 2.1 desktop speaker project. It started with a Creative Stage SE soundbar that I didn't particularly enjoy listening to at low volume. Rather than throw it away, I kept its enclosure and drivers for bass, built a pair of small 3D-printed satellite speakers, and replaced the electronics with my own board.
 
 The board uses an ESP32-S31 for USB/Bluetooth audio and system control, an ADAU1451 for DSP, and two TAS5825M Class-D amplifiers. I wanted a system I could measure, tune, and change without fighting the original firmware.
@@ -9,8 +11,6 @@ The board uses an ESP32-S31 for USB/Bluetooth audio and system control, an ADAU1
 This repository contains the firmware, SigmaStudio project, PCB design export, and enclosure models. It's an ongoing personal project, not a ready-to-build speaker kit.
 
 ![Chime PCB, top side](hardware/photos/pcb-top.jpg)
-
-[Read the build story](https://branzhu.github.io/chime-dsp-audio/)
 
 ## Hardware and audio path
 

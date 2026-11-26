@@ -2,6 +2,8 @@
 
 # Chime
 
+[阅读制作过程（英文） →](https://branzhu.github.io/chime-dsp-audio/)
+
 Chime 是我折腾的一套桌面 2.1 音箱，起点是一台在架子上吃灰的 Creative Stage SE。它在我习惯的小音量下听起来不太对劲，但箱体和低频单元还有利用价值。于是我保留了 Stage SE 的箱体和喇叭，让它负责低频，另外做了一对 3D 打印的小卫星箱，再用自己的 PCB 替换掉原装控制板。
 
 主控是 ESP32-S31，负责 USB、蓝牙音频和系统控制；ADAU1451 负责 DSP；两颗 TAS5825M 负责功率放大。我想要的是一套能自己测、自己调、想改就改的桌面音响。
@@ -9,8 +11,6 @@ Chime 是我折腾的一套桌面 2.1 音箱，起点是一台在架子上吃灰
 仓库里有固件、SigmaStudio 工程、PCB 设计导出文件和箱体模型。目前还是个人研发项目，不是一套拿到文件就能直接照着量产的成品方案。
 
 ![Chime 电路板顶面实拍](hardware/photos/pcb-top.jpg)
-
-[阅读制作过程（英文）](https://branzhu.github.io/chime-dsp-audio/)
 
 ## 硬件与音频链路
 
