@@ -1,6 +1,11 @@
 #include "sdkconfig.h"
 #include "chime_bluetooth.h"
 #include "chime_bt_pcm.h"
+#if CONFIG_CHIME_LDAC_PIPELINE_TEST
+#include "chime_bt_ready.h"
+#endif
+#include "chime_bt_flow.h"
+#include "chime_render.h"
 #include "chime_bt_delay.h"
 #include "chime_bt_vendor.h"
 #if CONFIG_BT_A2DP_USE_EXTERNAL_CODEC
@@ -22,6 +27,24 @@
 static const char *TAG="chime_bt";
 static portMUX_TYPE mux=portMUX_INITIALIZER_UNLOCKED;
 static chime_bt_pcm_t queue;
+#if CONFIG_CHIME_LDAC_PIPELINE_TEST
+#ifdef ESP_PLATFORM
+#include "esp_attr.h"
+#else
+#define RTC_DATA_ATTR
+#define RTC_NOINIT_ATTR
+#endif
+/* Short-latency ready handoff stays in main SRAM; bulk PCM is banked. */
+static chime_bt_ready_t ready48;
+/* Only scalar reads/writes, copied to main-SRAM SRC job before any PIE load.
+ * Keep the exact 8192-frame capacity, not a larger jitter buffer. */
+static RTC_NOINIT_ATTR int16_t pcm_tail[6144][2];
+static uint64_t delivered_input;
+static unsigned ready_input[CHIME_BT_READY_BLOCKS];
+static esp_err_t compute_q27(int32_t *pcm,size_t frames,bool *ready,uint32_t epoch,uint32_t output_id,unsigned *input_frames);
+
+#endif
+static chime_bt_flow_t flow;
 static chime_bt_delay_t delay;
 static uint32_t delay_generation,delay_pending_generation;
 static uint64_t delay_sent_us,delay_retry_us;
@@ -31,7 +54,20 @@ static bool delay_inflight;
 static uint16_t delay_inflight_value;
 #define DELAY_FIXED_US (CHIME_BT_DELAY_DMA_US + CONFIG_CHIME_BT_DELAY_EXTRA_MS*1000U)
 static chime_bluetooth_status_t state;
+#if CONFIG_CHIME_LDAC_PIPELINE_TEST
+static bool pipeline_mode_locked(void)
+{
+    return state.codec==CHIME_BT_CODEC_LDAC&&state.rate==48000;
+}
+#endif
 static bool rendering,closing;
+#if CONFIG_CHIME_LDAC_REPLAY_TEST
+static uint32_t replay_token; /* survives fault epoch invalidation for STOP */
+#endif
+static bool session_running_locked(void)
+{
+    return (state.connected&&state.playing)||state.simulated;
+}
 static unsigned absolute_volume;
 static bool volume_notification,volume_dirty,avrc_connected,remote_volume_valid;
 static uint8_t avrc_peer[6],audio_peer[6];
@@ -95,9 +131,59 @@ const char *chime_bluetooth_codec_name(chime_bt_codec_t codec)
  * per-block success paths, and no relaxation of fail-closed ownership. */
 static void stream_fault_log(const char *reason,const chime_bluetooth_status_t *s,unsigned queued)
 {
+    /* Capture BEFORE UART (and a possible retry), not a second later when
+     * the periodic owner monitor eventually gets scheduled. No nested locks. */
+    chime_bt_flow_t trace;
+    portENTER_CRITICAL(&mux);trace=flow;portEXIT_CRITICAL(&mux);
+    chime_render_stats_t rs;chime_render_snapshot(&rs);
+#if CONFIG_BT_A2DP_USE_EXTERNAL_CODEC
+    chime_bt_decoder_stats_t ds;bool decoder_stats=chime_bt_decoder_snapshot(&ds);
+#endif
     ESP_LOGE(TAG,"stream stopped reason=%s codec=%s epoch=%lu error=%d rate=%u queued=%u packets=%lu overflows=%lu underruns=%lu gap_events=%lu gap_blocks=%lu; pause/play or reconnect to retry",
         reason,chime_bluetooth_codec_name(s->codec),(unsigned long)s->epoch,s->error,s->rate,queued,
         (unsigned long)s->packets,(unsigned long)s->overflows,(unsigned long)s->underruns,(unsigned long)s->pcm_gap_events,(unsigned long)s->pcm_gap_blocks);
+    ESP_LOGE(TAG,"fault PCM pushed=%llu consumed=%llu rendered=%llu discarded=%llu target=%u queue_min=%u queue_max=%u clamp_blocks=%lu",
+        (unsigned long long)s->pcm_frames,(unsigned long long)s->consumed_frames,
+        (unsigned long long)s->rendered_frames,(unsigned long long)s->discarded_frames,
+        s->target_frames,s->queue_min,s->queue_max,(unsigned long)s->clamp_blocks);
+    ESP_LOGE(TAG,"fault MIX blocks=%lu bt_short=%lu src_blocks=%lu src_avg_us=%llu compute_us=%lu/%lu src_us=%lu/%lu write_us=%lu/%lu period_us=%lu/%lu misses=%lu yields=%lu src_active=%u src_inflight_us=%lu; WALL times, snapshot before UART",
+        (unsigned long)rs.blocks,(unsigned long)rs.bt_short,(unsigned long)rs.src_blocks,
+        (unsigned long long)(rs.src_blocks?rs.src_total_us/rs.src_blocks:0),
+        (unsigned long)rs.last_compute_us,(unsigned long)rs.max_compute_us,
+        (unsigned long)rs.last_src_us,(unsigned long)rs.max_src_us,
+        (unsigned long)rs.last_write_us,(unsigned long)rs.max_write_us,
+        (unsigned long)rs.last_period_us,(unsigned long)rs.max_period_us,
+        (unsigned long)rs.deadline_misses,(unsigned long)rs.unpaced_yields,
+        (unsigned)rs.src_active,(unsigned long)rs.src_inflight_us);
+#if CONFIG_BT_A2DP_USE_EXTERNAL_CODEC
+    if(decoder_stats)ESP_LOGE(TAG,"fault MEMORY LDAC fast reserved=%u used=%u peak=%u failures=%u; HP SRAM only",
+        ds.ldac_fast_reserved_bytes,ds.ldac_fast_used_bytes,ds.ldac_fast_peak_bytes,ds.ldac_fast_failures);
+    if(decoder_stats)ESP_LOGE(TAG,"fault DECODE epoch=%lu completed=%lu wait_us=%u/%u raw_after=%u/%u packet_us=%u/%u ldac_frames=%lu ldac_pcm_frames=%lu same_input=%lu ts_same=%lu ts_delta=%lu previous_frames=%lu; counters include in-flight PCM before admission, repeated input diagnostic ONLY",
+        (unsigned long)ds.epoch,(unsigned long)ds.packets,ds.queue_wait_us,ds.max_queue_wait_us,
+        ds.raw_after_dequeue,ds.raw_max_after_dequeue,ds.packet_us,ds.max_packet_us,
+        (unsigned long)ds.ldac_frames,(unsigned long)ds.ldac_pcm_frames,
+        (unsigned long)ds.ldac_same_input,(unsigned long)ds.ldac_ts_same,
+        (unsigned long)ds.ldac_ts_delta,(unsigned long)ds.ldac_previous_frames);
+#endif
+    if(trace.output_id!=s->output_id){
+        ESP_LOGE(TAG,"fault FLOW unavailable: output admission changed fault_output=%lu current_output=%lu",
+            (unsigned long)s->output_id,(unsigned long)trace.output_id);return;
+    }
+    ESP_LOGE(TAG,"fault START first_pcm_us=%lu first_render_us=%lu prime_queue=%lu prime_target=%lu; relative to output admission, UINT32_MAX=unseen",
+        (unsigned long)trace.first_pcm_us,(unsigned long)trace.first_render_us,
+        (unsigned long)trace.prime_queue,(unsigned long)trace.prime_target);
+    /* Fixed 20ms wall-time bins; missing indices have no recorded activity.
+     * Iterate in chronological order; do not log at all on successful blocks. */
+    uint32_t latest=0;
+    for(unsigned i=0;i<CHIME_BT_FLOW_BINS;++i)if(trace.bins[i].valid&&trace.bins[i].index>latest)latest=trace.bins[i].index;
+    uint32_t first=latest>=CHIME_BT_FLOW_BINS?latest-CHIME_BT_FLOW_BINS+1U:0;
+    for(uint32_t i=first;i<=latest;++i){
+        const chime_bt_flow_bin_t *b=&trace.bins[i%CHIME_BT_FLOW_BINS];
+        if(!b->valid||b->index!=i)continue;
+        ESP_LOGE(TAG,"fault FLOW at_ms=%llu span_ms=20 pushed=%lu consumed=%lu rx_packets=%lu queue_end=%lu queue_max=%lu; edge bins may be partial",
+            (unsigned long long)i*20U,(unsigned long)b->pushed,(unsigned long)b->consumed,
+            (unsigned long)b->packets,(unsigned long)b->queue_end,(unsigned long)b->queue_max);
+    }
 }
 static void recovery_cancel_locked(void)
 {
@@ -110,7 +196,7 @@ static void recovery_cancel_locked(void)
 static void invalidate_locked(void)
 {
     pcm_metrics_locked();recovery_cancel_locked();
-    ++state.epoch;rendering=false;starved_since=0;gap_run=0;
+    ++state.epoch;rendering=false;state.clock_follow=false;starved_since=0;gap_run=0;
     ++delay_generation;chime_bt_delay_reset(&delay);delay_retry_us=0;
     state.delay_estimate_us=state.delay_samples=state.delay_queue_us=state.delay_residence_us=0;
     state.delay_pending=false;state.delay_timed_out=false;
@@ -123,7 +209,14 @@ void chime_bluetooth_snapshot(chime_bluetooth_status_t *s)
     state.delay_queue_us=delay.queue_us;state.delay_residence_us=delay.residence_us;
     state.rebuffer_wait_ms=state.stream_state==CHIME_BT_STREAM_REBUFFERING?
         elapsed_ms((uint64_t)esp_timer_get_time(),rebuffer_started):0;
-    state.delay_fixed_us=DELAY_FIXED_US;*s=state;s->queued_frames=(unsigned)queue.count;s->drift_ppm=queue.ppm;s->output_active=rendering;s->primed=queue.primed;portEXIT_CRITICAL(&mux);
+    state.delay_fixed_us=DELAY_FIXED_US;*s=state;
+#if CONFIG_CHIME_LDAC_PIPELINE_TEST
+    s->pipeline_enabled=pipeline_mode_locked();s->pipeline_ready_blocks=ready48.count;
+    s->pipeline_high_water=ready48.high_water;s->pipeline_underruns=ready48.underruns;
+    s->pipeline_produced=ready48.produced;s->pipeline_consumed=ready48.consumed;
+    s->pipeline_pending_input_frames=rendering?(unsigned)(queue.consumed_frames-delivered_input):0;
+#endif
+    s->queued_frames=(unsigned)queue.count;s->drift_ppm=queue.ppm;s->output_active=rendering;s->primed=queue.primed;portEXIT_CRITICAL(&mux);
 }
 bool chime_bluetooth_connected(void)
 {
@@ -132,7 +225,7 @@ bool chime_bluetooth_connected(void)
 bool chime_bluetooth_wanted(void)
 {
     chime_bluetooth_status_t s;chime_bluetooth_snapshot(&s);
-    return s.available&&s.connected&&s.playing&&s.rate&&s.channels&&s.error==ESP_OK;
+    return s.available&&((s.connected&&s.playing)||s.simulated)&&s.rate&&s.channels&&s.error==ESP_OK;
 }
 uint32_t chime_bluetooth_epoch(void)
 {
@@ -158,20 +251,23 @@ static void pcm_for_epoch(const uint8_t *data,uint32_t bytes,uint32_t epoch)
         size_t n=bytes-offset,chunk=64U*channels*2U;if(n>chunk)n=chunk;
         uint64_t pcm_now=(uint64_t)esp_timer_get_time();
         portENTER_CRITICAL(&mux);
-        if(closing||!rendering||state.epoch!=epoch||!state.connected||!state.playing||state.error!=ESP_OK){portEXIT_CRITICAL(&mux);return;}
+        if(closing||!rendering||state.epoch!=epoch||!session_running_locked()||state.error!=ESP_OK){portEXIT_CRITICAL(&mux);return;}
         unsigned queued=(unsigned)queue.count;
 #if !CONFIG_BT_A2DP_USE_EXTERNAL_CODEC
         if(!offset)delay_sample_locked(pcm_now,0);
 #endif
         bool ok=chime_bt_pcm_push(&queue,data+offset,n,!rendering);
         if(ok){
-            if(!offset)chime_bt_pcm_arrival(&queue,pcm_now);
+            /* The +/-300ppm hardware servo must not chase a moving latency
+             * target while playing. Prefill/rebuffer may still raise it. */
+            if(!offset&&(!state.clock_follow||!queue.primed))chime_bt_pcm_arrival(&queue,pcm_now);
             unsigned interval=elapsed_us(pcm_now,last_pcm_us);
             if(pcm_seen&&interval>state.pcm_interval_max_us)state.pcm_interval_max_us=interval;
             last_pcm_us=pcm_now;pcm_seen=true;
         }
+        chime_bt_flow_record(&flow,pcm_now,ok?(uint32_t)(n/(channels*2U)):0,0,0,(uint32_t)queue.count,queue.target_frames);
         chime_bluetooth_status_t fault={0};
-        if(!ok){++state.overflows;state.error=ESP_ERR_NO_MEM;fault=state;invalidate_locked();}
+        if(!ok){++state.overflows;state.error=ESP_ERR_NO_MEM;pcm_metrics_locked();fault=state;invalidate_locked();}
         portEXIT_CRITICAL(&mux);
         if(!ok){stream_fault_log("pcm-overflow",&fault,queued);return;}
         offset+=n;
@@ -181,8 +277,16 @@ static void pcm_for_epoch(const uint8_t *data,uint32_t bytes,uint32_t epoch)
 static bool decoder_valid(uint32_t epoch)
 {
     portENTER_CRITICAL(&mux);
-    bool valid=!closing&&rendering&&state.epoch==epoch&&state.connected&&state.playing&&state.error==ESP_OK;
+    bool valid=!closing&&rendering&&state.epoch==epoch&&session_running_locked()&&state.error==ESP_OK;
     portEXIT_CRITICAL(&mux);return valid;
+}
+static unsigned decoder_pcm_capacity(uint32_t epoch)
+{
+    portENTER_CRITICAL(&mux);
+    unsigned free_frames=0;
+    if(!closing&&rendering&&state.epoch==epoch&&session_running_locked()&&state.error==ESP_OK)
+        free_frames=CHIME_BT_QUEUE_FRAMES-(unsigned)queue.count;
+    portEXIT_CRITICAL(&mux);return free_frames;
 }
 static void decoder_fail(uint32_t epoch,esp_err_t err)
 {
@@ -190,7 +294,7 @@ static void decoder_fail(uint32_t epoch,esp_err_t err)
     portENTER_CRITICAL(&mux);
     if(!closing&&rendering&&state.epoch==epoch&&state.error==ESP_OK){
         if(err==ESP_ERR_NO_MEM)++state.overflows;
-        state.error=err;fault=state;queued=(unsigned)queue.count;failed=true;invalidate_locked();
+        state.error=err;pcm_metrics_locked();fault=state;queued=(unsigned)queue.count;failed=true;invalidate_locked();
     }
     portEXIT_CRITICAL(&mux);
     if(failed)stream_fault_log("decoder/input",&fault,queued);
@@ -216,11 +320,54 @@ static void raw_callback(esp_a2d_conn_hdl_t handle,esp_a2d_audio_buff_t *buffer)
         unsigned interval=elapsed_us(now,last_rx_us);
         if(rx_seen&&interval>state.rx_interval_max_us)state.rx_interval_max_us=interval;
         last_rx_us=now;rx_seen=true;++state.packets;
+        chime_bt_flow_record(&flow,now,0,0,1,(uint32_t)queue.count,queue.target_frames);
     }
     portEXIT_CRITICAL(&mux);
     if(accept)chime_bt_decoder_submit(buffer,snapshot.epoch,snapshot.codec,snapshot.rate,snapshot.channels);
     else if(buffer)esp_a2d_audio_buff_free(buffer);
 }
+#if CONFIG_CHIME_LDAC_REPLAY_TEST
+esp_err_t chime_bluetooth_replay_begin(unsigned rate,uint32_t *epoch)
+{
+    if(!epoch||(rate!=44100&&rate!=48000))return ESP_ERR_INVALID_ARG;
+    portENTER_CRITICAL(&mux);
+    if(closing||!state.available||state.connected||state.playing||state.simulated||rendering){
+        portEXIT_CRITICAL(&mux);return ESP_ERR_INVALID_STATE;
+    }
+    state.simulated=true;state.codec=CHIME_BT_CODEC_LDAC;state.rate=rate;
+    state.channels=2;state.error=ESP_OK;
+    /* Same conservative admission gain as a new real BT link, not a knob to
+     * overcome low microphone SNR. Never touch USB/device/DSP/host volume. */
+    state.volume=-30*256;
+    invalidate_locked();*epoch=replay_token=state.epoch;
+    portEXIT_CRITICAL(&mux);return ESP_OK;
+}
+void chime_bluetooth_replay_end(uint32_t epoch,esp_err_t error)
+{
+    portENTER_CRITICAL(&mux);
+    if(state.simulated&&replay_token==epoch){
+        state.simulated=false;if(state.error==ESP_OK)state.error=error;invalidate_locked();
+    }
+    portEXIT_CRITICAL(&mux);
+}
+bool chime_bluetooth_replay_submit(void *owned,uint32_t epoch)
+{
+    esp_a2d_audio_buff_t *buffer=owned;unsigned rate=0;
+    portENTER_CRITICAL(&mux);
+    bool accept=buffer&&!closing&&rendering&&state.simulated&&state.epoch==epoch&&state.error==ESP_OK;
+    if(accept){
+        rate=state.rate;uint64_t now=(uint64_t)esp_timer_get_time();
+        unsigned interval=elapsed_us(now,last_rx_us);
+        if(rx_seen&&interval>state.rx_interval_max_us)state.rx_interval_max_us=interval;
+        last_rx_us=now;rx_seen=true;++state.packets;
+        chime_bt_flow_record(&flow,now,0,0,1,(uint32_t)queue.count,queue.target_frames);
+    }
+    portEXIT_CRITICAL(&mux);
+    if(accept)chime_bt_decoder_submit(buffer,epoch,CHIME_BT_CODEC_LDAC,rate,2);
+    else if(buffer)esp_a2d_audio_buff_free(buffer);
+    return accept;
+}
+#endif
 static esp_err_t register_endpoints(void)
 {
     /* Native IDF 6.1 external-codec API; no reference-repository SDK patches.
@@ -289,6 +436,12 @@ static void a2dp_callback(esp_a2d_cb_event_t event,esp_a2d_cb_param_t *p)
 #endif
     portENTER_CRITICAL(&mux);
     if(closing){portEXIT_CRITICAL(&mux);return;}
+    /* A real link/config transition preempts the test session, never inherits
+     * its PCM/epoch. The feeder will observe cancellation and discard its tail. */
+    if(state.simulated&&(event==ESP_A2D_CONNECTION_STATE_EVT||
+        event==ESP_A2D_AUDIO_CFG_EVT||event==ESP_A2D_AUDIO_STATE_EVT)){
+        state.simulated=false;invalidate_locked();
+    }
 #if CONFIG_BT_A2DP_USE_EXTERNAL_CODEC
     /* Delayed events from a retired link may not revoke/reformat a new one. */
     if(state.connected&&((event==ESP_A2D_AUDIO_STATE_EVT&&p->audio_stat.conn_hdl!=connection)||
@@ -485,15 +638,26 @@ static void avrc_callback(esp_avrc_tg_cb_event_t event,esp_avrc_tg_cb_param_t *p
         esp_avrc_tg_send_rn_rsp(ESP_AVRC_RN_VOLUME_CHANGE,ESP_AVRC_RN_RSP_INTERIM,&value);
     }
 }
-esp_err_t chime_bluetooth_output_begin(void)
+static esp_err_t output_begin(bool follow)
 {
     if(!chime_bluetooth_wanted())return ESP_ERR_INVALID_STATE;
     uint64_t now=(uint64_t)esp_timer_get_time();
-    portENTER_CRITICAL(&mux);chime_bt_pcm_reset(&queue,state.rate,state.channels);
+    portENTER_CRITICAL(&mux);
+    if(follow&&(state.codec!=CHIME_BT_CODEC_LDAC||state.rate!=48000||state.channels!=2)){
+        portEXIT_CRITICAL(&mux);return ESP_ERR_INVALID_STATE;
+    }
+    state.clock_follow=follow;
+    chime_bt_pcm_reset(&queue,state.rate,state.channels);
     if(!++output_counter)++output_counter;
     state.output_id=output_counter;
+#if CONFIG_CHIME_LDAC_PIPELINE_TEST
+    chime_bt_ready_reset(&ready48,state.epoch,state.output_id);delivered_input=0;
+    state.pipeline_last_compute_us=state.pipeline_max_compute_us=0;
+    state.pipeline_compute_total_us=0;state.pipeline_computed_blocks=0;
+#endif
     ++delay_generation;chime_bt_delay_reset(&delay);delay_retry_us=0;
     state.delay_pending=state.delay_timed_out=false;
+    chime_bt_flow_reset(&flow,now);flow.output_id=state.output_id;
     rendering=true;output_started=now;starved_since=0;gap_run=0;
     state.stream_state=CHIME_BT_STREAM_PREFILL;
     state.rebuffer_events=state.rebuffer_resumes=state.rebuffer_cancels=state.rebuffer_blocks=0;
@@ -502,23 +666,37 @@ esp_err_t chime_bluetooth_output_begin(void)
     state.rx_interval_max_us=state.pcm_interval_max_us=0;
     state.gap_epoch=state.gap_at_ms=0;state.gap_queue=state.gap_needed=state.gap_rx_age_us=state.gap_pcm_age_us=0;state.gap_ppm=0;
     rx_seen=pcm_seen=false;last_rx_us=last_pcm_us=0;pcm_metrics_locked();
-    uint32_t epoch=state.epoch;unsigned rate=state.rate;
     portEXIT_CRITICAL(&mux);
-    ESP_LOGI(TAG,"OUTPUT BEGIN epoch=%lu rate=%u; decoder admission enabled",(unsigned long)epoch,rate);
     return ESP_OK;
 }
+esp_err_t chime_bluetooth_output_begin(void){return output_begin(false);}
+#if CONFIG_CHIME_LDAC_APLL_FOLLOW
+esp_err_t chime_bluetooth_output_begin_clocked(bool follow){return output_begin(follow);}
+#endif
 void chime_bluetooth_output_end(void)
 {
-    portENTER_CRITICAL(&mux);pcm_metrics_locked();recovery_cancel_locked();rendering=false;gap_run=0;starved_since=0;chime_bt_pcm_reset(&queue,state.rate,state.channels);portEXIT_CRITICAL(&mux);
+    portENTER_CRITICAL(&mux);pcm_metrics_locked();recovery_cancel_locked();rendering=false;state.clock_follow=false;gap_run=0;starved_since=0;chime_bt_pcm_reset(&queue,state.rate,state.channels);portEXIT_CRITICAL(&mux);
 }
-esp_err_t chime_bluetooth_render(uint8_t *pcm,size_t frames,bool *ready)
+static esp_err_t compute_q27(int32_t *pcm,size_t frames,bool *ready,uint32_t expected_epoch,uint32_t expected_output,unsigned *input_frames)
 {
     if(!pcm||!ready||frames!=128)return ESP_ERR_INVALID_ARG;
     uint64_t now=(uint64_t)esp_timer_get_time();
+    chime_bt_src_job_t job;memset(pcm,0,frames*2*sizeof(*pcm));*ready=false;
     portENTER_CRITICAL(&mux);
-    if(!rendering||!state.connected||!state.playing||state.error!=ESP_OK){portEXIT_CRITICAL(&mux);return ESP_ERR_INVALID_STATE;}
+    if(!rendering||!session_running_locked()||state.error!=ESP_OK){portEXIT_CRITICAL(&mux);return ESP_ERR_INVALID_STATE;}
+    /* Validate the producer token under the SAME lock as PCM preparation.
+     * A STOP/restart between work selection and here cannot consume new PCM. */
+    if(expected_epoch&&(state.epoch!=expected_epoch||state.output_id!=expected_output)){
+        portEXIT_CRITICAL(&mux);return ESP_ERR_INVALID_STATE;
+    }
     unsigned queued=(unsigned)queue.count;
-    bool was_primed=queue.primed;*ready=chime_bt_pcm_render(&queue,pcm,frames,now);
+    bool was_primed=queue.primed;
+    uint64_t before_consumed=queue.consumed_frames;
+    bool direct=state.clock_follow;
+    *ready=direct?chime_bt_pcm_direct_q27(&queue,pcm,frames,now):
+        chime_bt_pcm_prepare_clocked(&queue,&job,frames,now,expected_epoch==0);
+    if(input_frames)*input_frames=(unsigned)(queue.consumed_frames-before_consumed);
+    chime_bt_flow_record(&flow,now,0,(uint32_t)(queue.consumed_frames-before_consumed),0,(uint32_t)queue.count,queue.target_frames);
     if(!*ready){
         if(was_primed){
             if(!gap_run){
@@ -558,7 +736,74 @@ esp_err_t chime_bluetooth_render(uint8_t *pcm,size_t frames,bool *ready)
         state.stream_state=CHIME_BT_STREAM_PLAYING;starved_since=0;gap_run=0;
     }
     portEXIT_CRITICAL(&mux);
+    if(*ready&&!direct)chime_bt_src_process(&job,pcm,frames); /* Never FIR under the BT spinlock. */
     return ESP_OK;
+}
+#if CONFIG_CHIME_LDAC_PIPELINE_TEST
+/* Exactly one CPU1 producer. The service is bounded to one SRC block and never
+ * waits on output/input. A packet invokes it between its 128-frame LDAC frames;
+ * idle and PCM-capacity waits also service it, avoiding a backpressure deadlock.
+ * All FIR math is outside mux. No audio-path allocation or new high-priority task. */
+static void decoder_service(uint32_t epoch)
+{
+    uint32_t output_id;
+    portENTER_CRITICAL(&mux);
+    bool work=rendering&&session_running_locked()&&state.error==ESP_OK&&
+        state.epoch==epoch&&pipeline_mode_locked()&&ready48.count<CHIME_BT_READY_BLOCKS;
+    output_id=state.output_id;
+    portEXIT_CRITICAL(&mux);
+    if(!work)return;
+    int32_t pcm[CHIME_BT_READY_SAMPLES];bool ready=false;unsigned consumed_input=0;
+    uint64_t begin=(uint64_t)esp_timer_get_time();
+    if(compute_q27(pcm,128,&ready,epoch,output_id,&consumed_input)!=ESP_OK||!ready)return;
+    unsigned compute_us=(unsigned)((uint64_t)esp_timer_get_time()-begin);
+    portENTER_CRITICAL(&mux);
+    if(rendering&&session_running_locked()&&state.error==ESP_OK&&state.epoch==epoch&&
+       state.output_id==output_id&&pipeline_mode_locked())
+    {
+        unsigned tail=(ready48.head+ready48.count)%CHIME_BT_READY_BLOCKS;
+        if(chime_bt_ready_push(&ready48,epoch,output_id,pcm)){
+            ready_input[tail]=consumed_input;
+            state.pipeline_last_compute_us=compute_us;
+            if(compute_us>state.pipeline_max_compute_us)state.pipeline_max_compute_us=compute_us;
+            state.pipeline_compute_total_us+=compute_us;++state.pipeline_computed_blocks;
+        }
+    }
+    portEXIT_CRITICAL(&mux);
+}
+#endif
+esp_err_t chime_bluetooth_render_q27(int32_t *pcm,size_t frames,bool *ready)
+{
+    if(!pcm||!ready||frames!=128)return ESP_ERR_INVALID_ARG;
+#if CONFIG_CHIME_LDAC_PIPELINE_TEST
+    portENTER_CRITICAL(&mux);
+    if(pipeline_mode_locked()){
+        memset(pcm,0,CHIME_BT_READY_SAMPLES*sizeof(*pcm));*ready=false;
+        esp_err_t err=ESP_ERR_INVALID_STATE;
+        if(rendering&&session_running_locked()&&state.error==ESP_OK){
+            if(queue.primed){
+                uint64_t ahead=queue.consumed_frames-delivered_input;
+                chime_bt_pcm_control(&queue,(unsigned)(queue.count+ahead));
+            }
+            unsigned head=ready48.head;
+            *ready=chime_bt_ready_pop(&ready48,state.epoch,state.output_id,pcm);
+            if(*ready)delivered_input+=ready_input[head];
+            err=ESP_OK;
+        }
+        portEXIT_CRITICAL(&mux);return err;
+    }
+    portEXIT_CRITICAL(&mux);
+#endif
+    return compute_q27(pcm,frames,ready,0,0,NULL);
+}
+/* Compatibility API for host diagnostics; production never requantizes to PCM16. */
+esp_err_t chime_bluetooth_render(uint8_t *pcm,size_t frames,bool *ready)
+{
+    if(!pcm||!ready||frames!=128)return ESP_ERR_INVALID_ARG;
+    int32_t out[256]={0};esp_err_t err=chime_bluetooth_render_q27(out,frames,ready);
+    for(size_t i=0;i<frames*2;++i){int32_t v=out[i]/4096;if(v>32767)v=32767;if(v< -32768)v= -32768;
+        uint16_t u=(uint16_t)(int16_t)v;pcm[2*i]=(uint8_t)u;pcm[2*i+1]=(uint8_t)(u>>8);}
+    return err;
 }
 static bool wait_profile(int desired)
 {
@@ -567,6 +812,9 @@ static bool wait_profile(int desired)
 }
 esp_err_t chime_bluetooth_start(void)
 {
+#if CONFIG_CHIME_LDAC_PIPELINE_TEST
+    chime_bt_pcm_attach_tail(&queue,pcm_tail);
+#endif
     if(esp_bt_controller_get_status()!=ESP_BT_CONTROLLER_STATUS_IDLE)return ESP_ERR_INVALID_STATE;
     portENTER_CRITICAL(&mux);state=(chime_bluetooth_status_t){.volume=-30*256};closing=false;
     chime_bt_delay_reset(&delay);delay_inflight=false;++delay_generation;delay_retry_us=0;
@@ -590,7 +838,12 @@ esp_err_t chime_bluetooth_start(void)
     if((err=esp_avrc_tg_set_rn_evt_cap(&notifications))!=ESP_OK)goto fail;
     if((err=esp_a2d_register_callback(a2dp_callback))!=ESP_OK)goto fail;
 #if CONFIG_BT_A2DP_USE_EXTERNAL_CODEC
-    const chime_bt_decoder_callbacks_t callbacks={decoder_valid,pcm_for_epoch,decoder_fail,decoder_timing};
+    const chime_bt_decoder_callbacks_t callbacks={.valid=decoder_valid,.pcm=pcm_for_epoch,
+        .fail=decoder_fail,.timing=decoder_timing,.pcm_capacity=decoder_pcm_capacity,
+#if CONFIG_CHIME_LDAC_PIPELINE_TEST
+        .service=decoder_service,
+#endif
+    };
     if((err=chime_bt_decoder_start(&callbacks))!=ESP_OK)goto fail;
     if((err=esp_a2d_sink_register_audio_data_callback(raw_callback))!=ESP_OK)goto fail;
 #else
@@ -625,7 +878,7 @@ fail:
 }
 void chime_bluetooth_stop(void)
 {
-    portENTER_CRITICAL(&mux);closing=true;state.available=false;state.connected=state.playing=false;invalidate_locked();portEXIT_CRITICAL(&mux);
+    portENTER_CRITICAL(&mux);closing=true;state.available=false;state.connected=state.playing=state.simulated=false;invalidate_locked();portEXIT_CRITICAL(&mux);
     if(sink_requested){
         atomic_store(&profile,0);
         if(esp_a2d_sink_deinit()!=ESP_OK||!wait_profile(2)){

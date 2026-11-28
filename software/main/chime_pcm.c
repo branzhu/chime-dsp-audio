@@ -36,3 +36,10 @@ void chime_pcm_measure(chime_pcm_levels_t *levels,const uint8_t *pcm,
         levels->output_nonzero[ch]+=output!=0?1u:0u;
     }
 }
+
+int32_t chime_pcm_gain_q30(int volume)
+{
+    if(volume>0)volume=0;
+    if(volume< -60*256)volume= -60*256;
+    return (int32_t)(1073741824.0*pow(10.0,(double)volume/(256.0*20.0))+0.5);
+}

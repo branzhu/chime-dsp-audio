@@ -27,9 +27,9 @@ The two satellite speakers use 2-inch GP52-463 drivers in sealed, 3D-printed enc
 
 - **USB Audio:** 48 kHz, stereo, 16-bit PCM.
 - **Bluetooth A2DP:** SBC and AAC-LC, with experimental paths for aptX, aptX HD, Android Opus, LDAC, and LHDC V5. Codec paths in the source are not necessarily validated across phones or long listening sessions. LDAC/LHDC currently provide 44.1/48 kHz stereo PCM16; LHDC V2/V3 aren't supported.
-- **Source switching:** connecting A2DP selects Bluetooth; pausing keeps it selected; disconnecting returns to USB. USB and Bluetooth are not mixed.
+- **Simultaneous audio:** USB and Bluetooth are mixed on the ESP at 48 kHz using Q5.27 PCM, Q2.30 gains and 64-bit intermediates. Bluetooth uses an adaptive polyphase FIR SRC. There is no fixed mixing attenuation or automatic gain: keep source volumes low; overload saturates and is counted. Board-level coexistence and timing validation is still pending.
 - **DSP control:** SigmaStudio project and firmware parameters are checked against each other, including the compiled DSP image.
-- **Controls:** encoder for volume, press for mute, long press for standby; RGB LED for status. Wi-Fi setup and manual controls are available through a web UI.
+- **Controls:** encoder sends PC volume keys over USB HID; set Chime as the PC default output. Press mutes/unmutes both inputs locally; long press toggles standby. Phone volume controls Bluetooth independently; RGB LED for status. Wi-Fi setup and manual controls are available through a web UI.
 - **Debugging:** SigmaStudio TCP bridge for use on a trusted LAN, plus host-side tests for audio, controls, codecs, and DSP data.
 
 The DSP currently does the ordinary work—crossover, PEQ, and gain. Dynamic loudness, virtual bass, and the other ambitious ideas that justified buying a dedicated DSP are still on my to-do list.
@@ -54,7 +54,7 @@ I haven't packaged a one-click flashing procedure. In particular, don't mix a ne
 | [`dsp/`](dsp/) | SigmaStudio project, generated data, ESP32 parameter bindings |
 | [`hardware/`](hardware/) | EasyEDA PCB project export, schematic and PCB PDFs, and BOM; **not** a Gerber package |
 | [`mechanical/`](mechanical/) | STEP / 3MF models for the satellite enclosure, rear panel, and feet |
-| [`scripts/`](scripts/) | Build, DSP sync, and testing helpers |
+| [`scripts/`](scripts/) | Build, DSP sync, testing, and release helpers |
 | [`tools/wireshark/`](tools/wireshark/) | SigmaDSP protocol analysis tools |
 | [`docs/`](docs/README.md) | User guides in English and Simplified Chinese |
 
@@ -69,7 +69,7 @@ See the [PCB notes](hardware/README.md) for board files and pre-manufacturing ch
 
 ## Credits and licenses
 
-I used codec code and reference implementations from [ESP32-A2DP-SINK-WITH-CODECS-UPDATED](https://github.com/WillyBilly06/ESP32-A2DP-SINK-WITH-CODECS-UPDATED), [LHDC-V5-Decoder](https://github.com/WillyBilly06/LHDC-V5-Decoder), and **freeaptx**. Thanks to WillyBilly06 and the other upstream authors. The exact imported revisions and files are recorded in the [codec import manifest](software/components/chime_codec_reference/UPSTREAM.json), [LHDC snapshot record](software/components/chime_codec_reference/vendor/native_bt/codecs/lhdcv5/source_snapshot/SOURCE.json), and [freeaptx manifest](software/components/chime_freeaptx/UPSTREAM.json). Only the codec-related pieces were imported, not the upstream Bluetooth host or renderer.
+All seven external Bluetooth codec backends now use [ESP32-S31-A2DP-Codecs](https://github.com/WillyBilly06/ESP32-S31-A2DP-Codecs). Thanks to WillyBilly06 and the upstream codec authors. The pinned revision and every imported file are recorded in the [codec import manifest](software/components/chime_codec_reference/UPSTREAM.json); see the [migration and known LHDC level regression](software/components/chime_codec_reference/README.md). Only codec libraries are imported, not the upstream Bluetooth host or renderer. The retired [freeaptx import](software/components/chime_freeaptx/UPSTREAM.json) from [ESP32-A2DP-SINK-WITH-CODECS-UPDATED](https://github.com/WillyBilly06/ESP32-A2DP-SINK-WITH-CODECS-UPDATED) is retained for history but is not linked.
 
 Different parts of this repository have different licenses:
 

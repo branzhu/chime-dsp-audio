@@ -7,7 +7,8 @@ void *chime_reference_open(int lhdc,unsigned rate,unsigned channels);
 void chime_reference_close(void *handle);
 size_t chime_reference_decode(void *handle,const uint8_t *data,size_t length,uint8_t *pcm,size_t capacity);
 
-/* Upstream quality events, not a certification/bitrate/physical-output metric.
+/* Legacy native-port quality ABI. S31 backend currently returns unavailable.
+ * Upstream quality events, not a certification/bitrate/physical-output metric.
  * Boot-cumulative counters; metadata belongs to the last exceptional attempt.
  * Synthetic wrapper RTP identifiers are deliberately not exposed. */
 typedef struct {

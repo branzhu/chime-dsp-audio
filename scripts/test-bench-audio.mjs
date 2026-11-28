@@ -36,10 +36,13 @@ for(const [name,extra] of [['chime_dsp_boot',[]],['chime_pcm',[]]]){
 
 const usbExe=path.join(build,`chime_usb${process.platform==='win32'?'.exe':''}`);
 const usbIncludes=['software/tests/usb/stubs',...includes];
-const usbFiles=['software/tests/usb/test_chime_usb.c','software/main/chime_usb.c','software/main/chime_pcm.c'];
+const usbFiles=['software/tests/usb/test_chime_usb.c','software/main/chime_usb.c','software/main/chime_pcm.c','software/main/chime_hid.c'];
 run(cc,msvc?['/nologo','/std:c11','/experimental:c11atomics','/W4','/WX',...usbIncludes.map(p=>`/I${p}`),...usbFiles,`/Fo${build}${path.sep}`,`/Fe${usbExe}`,'/link','/INCREMENTAL:NO']
 :['-std=c11','-Wall','-Wextra','-Werror',...usbIncludes.map(p=>`-I${p}`),...usbFiles,'-lm','-o',usbExe]);
 run(usbExe,[]);
+
+// Diagnostics must also link without the optional external decoder worker.
+await import('./test-audio-diagnostics.mjs');
 
 // Verify source/image/parameter-map agreement and generation failure cases.
 await import('./test-frozen-dsp.mjs');

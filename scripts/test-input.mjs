@@ -14,8 +14,8 @@ test('decoder',['software/tests/input/test_chime_input.c','software/main/chime_i
 for(const reverse of [0,1])test(`controls-${reverse}`,['software/tests/input/test_chime_controls.c','software/main/chime_input.c'],['software/tests/input/stubs','software/tests/bluetooth/stubs','software/tests/usb/stubs','software/tests/audio/stubs','software/main/include'],[`CONFIG_CHIME_ENCODER_REVERSE=${reverse}`]);
 const inc=['software/tests/bluetooth/stubs','software/tests/usb/stubs','software/tests/audio/stubs','software/main/include'];
 for(const [name,defines] of [['internal',[]],['external',['CONFIG_BT_A2DP_USE_EXTERNAL_CODEC=1']],['vendor',['CONFIG_BT_A2DP_USE_EXTERNAL_CODEC=1','CONFIG_CHIME_BT_VENDOR_CODECS=1']]])
- test(`bt-${name}`,['software/tests/bluetooth/test_chime_bluetooth.c','software/main/chime_bluetooth.c','software/main/chime_bt_pcm.c','software/main/chime_bt_delay.c',...(name==='vendor'?['software/main/chime_bt_vendor.c']:[])],inc,defines);
-test('source',['software/tests/bluetooth/test_chime_source.c','software/main/chime_source.c','software/main/chime_bt_pcm.c'],['software/main/include']);
-test('usb',['software/tests/usb/test_chime_usb.c','software/main/chime_usb.c','software/main/chime_pcm.c'],['software/tests/usb/stubs','software/tests/bluetooth/stubs','software/tests/audio/stubs','software/main/include']);
+ test(`bt-${name}`,['software/tests/bluetooth/test_chime_bluetooth.c','software/main/chime_bluetooth.c','software/main/chime_bt_pcm.c','software/main/chime_bt_src.c','software/main/chime_bt_delay.c',...(name==='vendor'?['software/main/chime_bt_vendor.c']:[])],inc,defines);
+test('source',['software/tests/bluetooth/test_chime_source.c','software/main/chime_source.c','software/main/chime_bt_pcm.c','software/main/chime_bt_src.c'],['software/main/include']);
+test('usb',['software/tests/usb/test_chime_usb.c','software/main/chime_usb.c','software/main/chime_pcm.c','software/main/chime_hid.c'],['software/tests/usb/stubs','software/tests/bluetooth/stubs','software/tests/audio/stubs','software/main/include']);
 await import('./test-ss-audition.mjs');
 await import('./test-led.mjs');

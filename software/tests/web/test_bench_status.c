@@ -19,6 +19,9 @@ int main(void)
     assert(strstr(json,"\"amplifiers_enabled\":false")!=NULL);
     assert(strstr(json,"\"audio_tested\":false")!=NULL);
     assert(strstr(json,"\"sound_attempted\":false")!=NULL);
+    s.selected_source=3;s.rendering_source=3;
+    assert(bench_status_json(&s,json,sizeof(json)));
+    assert(strstr(json,"\"selected_source\":\"mix\"")&&strstr(json,"\"rendering_source\":\"mix\""));
     s.selected_source=2;s.rendering_source=0;s.bt_available=s.bt_connected=true;s.bt_rate=44100;
     assert(bench_status_json(&s,json,sizeof(json)));
     assert(strstr(json,"\"selected_source\":\"bluetooth\"")&&strstr(json,"\"rendering_source\":\"none\""));

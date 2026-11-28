@@ -30,6 +30,8 @@ Run from the repository root; no board connection is required:
 
 ```sh
 node scripts/test-input.mjs
+python scripts/generate-bt-src.py --check
+node scripts/test-mixing.mjs
 node scripts/test-bench-audio.mjs
 node scripts/test-bench-web.mjs
 node scripts/test-chime-page.mjs

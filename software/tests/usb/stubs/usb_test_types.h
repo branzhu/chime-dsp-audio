@@ -79,3 +79,16 @@ typedef struct {
 esp_err_t tinyusb_driver_install(const tinyusb_config_t *);
 esp_err_t tinyusb_driver_uninstall(void);
 #define ESP_ERR_NO_MEM 0x101
+
+#define TUD_HID_DESC_LEN 0
+#define TUD_HID_DESCRIPTOR(...)
+#define TUD_HID_REPORT_DESC_CONSUMER(...) 0
+#define HID_ITF_PROTOCOL_NONE 0
+#define TINYUSB_EVENT_ATTACHED 2
+typedef int hid_report_type_t;
+bool tud_mounted(void);
+bool tud_hid_ready(void);
+bool tud_hid_report(uint8_t id,void const *report,uint16_t len);
+
+#define AUDIO_FEEDBACK_METHOD_DISABLED 0
+bool tud_audio_n_fb_set(uint8_t func,uint32_t feedback);

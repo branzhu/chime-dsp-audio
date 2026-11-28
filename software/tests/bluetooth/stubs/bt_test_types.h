@@ -42,7 +42,8 @@ enum {ESP_A2D_AUDIO_STATE_SUSPEND,ESP_A2D_AUDIO_STATE_STARTED};
 typedef unsigned esp_a2d_conn_hdl_t;
 typedef struct {unsigned obj_type,samp_freq1,samp_freq2,ch,vbr,br1,br2,br3;} esp_a2d_cie_m24_t;
 typedef struct {unsigned type;struct {uint8_t vendor[12];struct {unsigned samp_freq,ch_mode,block_len,num_subbands,alloc_mthd,min_bitpool,max_bitpool;} sbc_info;esp_a2d_cie_m24_t m24_info;} cie;} esp_a2d_mcc_t;
-typedef struct {uint16_t data_len;uint8_t *data;uint32_t timestamp;} esp_a2d_audio_buff_t;
+typedef struct {uint16_t data_len;uint8_t *data;uint32_t timestamp;uint16_t number_frame,buff_size;} esp_a2d_audio_buff_t;
+esp_a2d_audio_buff_t *esp_a2d_audio_buff_alloc(uint16_t size);
 #define ESP_A2D_MCT_M24 2
 #define ESP_A2D_SEP_REG_SUCCESS 0
 void esp_a2d_audio_buff_free(esp_a2d_audio_buff_t *buffer);

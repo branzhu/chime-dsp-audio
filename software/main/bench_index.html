@@ -29,10 +29,10 @@ select,input{box-sizing:border-box;width:100%;margin:6px 0 16px;padding:12px;bor
 <dl><dt>DSP PLL</dt><dd id="dsp-pll">未读取</dd><dt>DSP 核心</dt><dd id="dsp-core">未读取</dd><dt>ASRC0</dt><dd id="dsp-asrc">未读取</dd></dl>
 <p id="dsp-hint" class="hint">有 BCLK/LRCLK 信号不等于 ASRC 已锁定，还需核对配置与实际频率。</p>
 <pre id="dsp-dump">点击上方按钮后，此处显示十六进制寄存器快照，可直接选中复制。</pre></section>
-<section><h2>USB / 蓝牙单音源</h2>
+<section><h2>USB / 蓝牙混音</h2>
 <p id="source-state" role="status">正在读取音源状态…</p>
 <div class="row"><button id="source-resume" type="button" disabled>恢复自动播放</button><button id="source-stop" type="button" class="danger">停止全部音源</button></div>
-<p class="hint">手机配对“Chime Bluetooth”（SBC / AAC-LC / aptX / aptX HD / Android Opus / LDAC）。A2DP 连接即选蓝牙，暂停仍占源；断开后回 USB，无需电脑重开播放器。STOP 后须点击恢复，重连不解除停音。蓝牙新连接初始 −30 dB，手机绝对音量可独立调整；测试前先降低手机和电脑音量。SS 外部工程仍只允许手动 USB 试听。SBC 已确认出声；AAC、新增 vendor codec、自动切源及 SRC/共存仍需实板验收。LHDC V5 使用统一 reference codec 后端，当前默认启用，仅支持 44.1/48 kHz、PCM16、256–500 kbps，不含 V2/V3、无损或高采样率；尚未通过手机/音乐实板验收。LDAC 为 44.1/48 kHz 双声道、输出 PCM16（不广播 88.2/96 kHz）；aptX HD 当前转为 16-bit PCM；Opus 仅 Android 48 kHz / 20 ms 立体声，不含 PipeWire Opus 05。</p></section>
+<p class="hint">手机配对“Chime Bluetooth”（SBC / AAC-LC / aptX / aptX HD / Android Opus / LDAC）。USB 与蓝牙同时混音，连接或暂停蓝牙不抢占 USB。旋钮只调 PC 默认输出音量；短按全部静音，长按待机。PC 须将 Chime 设为默认输出。STOP 后须点击恢复，重连不解除停音。蓝牙新连接初始 −30 dB，手机绝对音量可独立调整；测试前先降低手机和电脑音量。SS 外部工程仍只允许手动 USB 试听。SBC 已确认出声；AAC、新增 vendor codec、高精度混音及 FIR SRC/共存仍需实板验收。LHDC V5 使用统一 reference codec 后端，当前默认启用，仅支持 44.1/48 kHz、PCM16、256–500 kbps，不含 V2/V3、无损或高采样率；尚未通过手机/音乐实板验收。LDAC 为 44.1/48 kHz 双声道、输出 PCM16（不广播 88.2/96 kHz）；aptX HD 当前转为 16-bit PCM；Opus 仅 Android 48 kHz / 20 ms 立体声，不含 PipeWire Opus 05。</p></section>
 <section><h2>USB Audio</h2><p>电脑连接 USB1，选择“Chime USB Audio”，48 kHz 双声道 16-bit。可使用电脑上的声学测量软件发送扫频、噪声或音乐，再选择实际发声的输出。USB 输入已取消固定 1/8 衰减，系统音量 0 dB 时可送满幅 PCM；尚无功率 limiter。功放数字音量为 0 dB，模拟增益为 −8 dB；当前 DSP 仍保留工程各支路增益。取消 USB 固定衰减会提高电平，测试前先降低主机电平至少 18 dB，从小信号开始。SS+ 下载/写参数时先停音；下载后可手动启用外部工程 USB 试听。断开连接保留 RAM 工程，重启恢复内置工程。请先降低电脑音量。</p></section>
 <section aria-label="SS 调音试听"><h2>SS 调音 · USB 试听</h2>
 <p class="hint">先降低电脑音量，再由 SS 下载兼容本板 48 kHz I²S / ASRC0 的工程。下载完成后选择功放组并手动启用试听；不写外部工程的 Gain 参数。L/R 单独隔离、分频和限幅由 SS 工程负责。Sub 是双通道 BTL，两个独立喇叭。</p>
@@ -74,9 +74,9 @@ async function json(url,options={}){
 }
 function renderStatus(s){
   deviceStatus=s;
-  const sourceName=value=>value==='bluetooth'?'蓝牙':value==='usb'?'USB':'无';
+  const sourceName=value=>value==='mix'?'USB + 蓝牙':value==='bluetooth'?'蓝牙':value==='usb'?'USB':'无';
   el('source-state').textContent='选中 '+sourceName(s.selected_source)+' · 输出 '+sourceName(s.rendering_source)+
-    (s.source_stopped?' · 已手动停音 / 调试锁定':'')+' · 蓝牙 '+(s.bt_available?(s.bt_connected?(s.bt_playing?(s.bt_stream_state===4?'连接/等待音频恢复':s.bt_stream_state===1?'连接/缓冲中':s.bt_stream_state===5?'连接/音频故障':s.rendering_source==='bluetooth'?'连接/播放':'连接/等待播放'):'连接/暂停'):'未连接'):'不可用')+
+    (s.source_stopped?' · 已手动停音 / 调试锁定':'')+' · 蓝牙 '+(s.bt_available?(s.bt_connected?(s.bt_playing?(s.bt_stream_state===4?'连接/等待音频恢复':s.bt_stream_state===1?'连接/缓冲中':s.bt_stream_state===5?'连接/音频故障':(s.rendering_source==='bluetooth'||s.rendering_source==='mix')?'连接/播放':'连接/等待播放'):'连接/暂停'):'未连接'):'不可用')+
     (s.bt_rate?' · '+(s.bt_codec||'none')+' '+s.bt_rate+' Hz':'')+(s.bt_error?' · 错误 '+s.bt_error:'');
   el('source-resume').disabled=!s.station_connected||!s.dsp_default_ready||!!s.dsp_external||!!s.bridge_connected||!!s.amplifiers_enabled||!!s.output_pending||!!s.tuning_pending;
   outputRender();

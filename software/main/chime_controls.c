@@ -44,7 +44,6 @@ static void input_worker(void *arg)
     chime_button_t button;
     chime_button_init(&button,gpio_get_level(BOARD_GPIO_ENCODER_BUTTON)==0,
         (uint64_t)esp_timer_get_time()/1000U);
-    bool previous_bt=chime_bluetooth_connected();
     while(!atomic_load(&quitting)){
         chime_input_event_t event=chime_button_sample(&button,
             gpio_get_level(BOARD_GPIO_ENCODER_BUTTON)==0,(uint64_t)esp_timer_get_time()/1000U);
@@ -55,16 +54,14 @@ static void input_worker(void *arg)
             ESP_LOGI("chime_input","%s mute=%u standby=%u",event==CHIME_INPUT_HOLD?"hold":"click",
                 (next&CHIME_CONTROL_MUTED)!=0,(next&CHIME_CONTROL_STANDBY)!=0);
         }
-        bool bt=chime_bluetooth_connected();
+        chime_usb_hid_poll();
         int delta=take_steps();
-        /* Do not apply queued movement from the old source to the new one. */
-        if(bt!=previous_bt){delta=0;previous_bt=bt;}
 #if CONFIG_CHIME_ENCODER_REVERSE
         delta=-delta;
 #endif
         if(delta&&!chime_controls_standby()){
-            esp_err_t err=bt?chime_bluetooth_adjust_volume(delta*2):chime_usb_adjust_volume(delta);
-            if(err!=ESP_OK)ESP_LOGW("chime_input","volume source=%s steps=%d result=%d (not queued)",bt?"bt":"usb",delta,err);
+            esp_err_t err=chime_usb_adjust_volume(delta);
+            if(err!=ESP_OK)ESP_LOGW("chime_input","PC volume steps=%d result=%d (not queued)",delta,err);
         }
         chime_bluetooth_volume_notify();
         vTaskDelay(pdMS_TO_TICKS(5)>0?pdMS_TO_TICKS(5):1);
@@ -100,7 +97,7 @@ esp_err_t chime_controls_start(void)
         gpio_isr_handler_remove(BOARD_GPIO_ENCODER_A);gpio_isr_handler_remove(BOARD_GPIO_ENCODER_B);return err;
     }
     started=true;
-    ESP_LOGI("chime_input","encoder A=42 B=40 BTN=43; reverse=%u; full-cycle, USB 1dB / BT 2-of-127, hold=1500ms",(unsigned)CONFIG_CHIME_ENCODER_REVERSE);
+    ESP_LOGI("chime_input","encoder A=42 B=40 BTN=43; reverse=%u; full-cycle, HID PC volume / global mute, hold=1500ms",(unsigned)CONFIG_CHIME_ENCODER_REVERSE);
     return ESP_OK;
 }
 void chime_controls_stop(void)

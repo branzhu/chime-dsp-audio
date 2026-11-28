@@ -30,6 +30,8 @@ idf.py --preview -C software build
 
 ```sh
 node scripts/test-input.mjs
+python scripts/generate-bt-src.py --check
+node scripts/test-mixing.mjs
 node scripts/test-bench-audio.mjs
 node scripts/test-bench-web.mjs
 node scripts/test-chime-page.mjs

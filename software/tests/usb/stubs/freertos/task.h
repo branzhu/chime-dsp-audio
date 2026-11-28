@@ -5,3 +5,5 @@ int xTaskCreate(void (*)(void *),const char *,unsigned,void *,unsigned,TaskHandl
 int xTaskCreatePinnedToCore(void (*)(void *),const char *,unsigned,void *,unsigned,TaskHandle_t *,int);
 void vTaskDelay(uint32_t);
 void vTaskDelete(void *);
+
+int xPortGetCoreID(void);

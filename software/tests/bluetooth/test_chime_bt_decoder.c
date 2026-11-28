@@ -6,6 +6,10 @@
 #include <assert.h>
 #include <stdio.h>
 #include <string.h>
+/* Keep worker protocol mocks separate from the linked real frame backends. */
+#define chime_s31_open chime_worker_test_open
+#define chime_s31_close chime_worker_test_close
+#define chime_s31_decode chime_worker_test_decode
 #include "../../main/chime_bt_decoder.c"
 static packet_t slots[RAW_DEPTH];
 static unsigned head,count,allocs,frees,opens,closes,emits,errors,decoded;
@@ -48,9 +52,29 @@ static size_t captured_bytes;
 static bool capture;
 #endif
 static unsigned timer_step=1;static int64_t fake_clock;
+/* Free input frames, with a deterministic consumer on 1-tick waits. No worker
+ * re-entry on that path. NULL capacity remains covered by the legacy tests. */
+static bool capacity_enabled;
+static unsigned capacity_free,capacity_delays,capacity_release_after,capacity_action;
+#if CHIME_BT_REAL_LDAC
+static unsigned service_calls,service_refill;
+static void service(uint32_t epoch){if(epoch!=generation)return;++service_calls;if(service_refill)capacity_free=128;}
+#endif
+static unsigned capacity_tick_us=1000;
+
 static bool valid(uint32_t e){return live&&e==generation;}
+#if CHIME_BT_REAL_LDAC
+static unsigned capacity(uint32_t epoch){return valid(epoch)?capacity_free:0;}
+#endif
 static void emit(const uint8_t *p,uint32_t n,uint32_t e){assert(p==output&&n<=PCM_BYTES);if(valid(e)){
     ++emits;
+    if(capacity_enabled){assert(n==512&&capacity_free>=128);capacity_free-=128;}
+#if CONFIG_CHIME_BT_VENDOR_CODECS
+    if(active_codec==CHIME_BT_CODEC_LDAC){
+        chime_bt_decoder_stats_t progress;assert(chime_bt_decoder_snapshot(&progress));
+        assert(progress.ldac_pcm_frames>=n/4U&&progress.ldac_pcm_frames<=progress.ldac_frames*128U);
+    }
+#endif
 #if CHIME_BT_REAL_LHDC || CHIME_BT_REAL_LDAC
     if(capture){assert(captured_bytes+n<=sizeof(captured));memcpy(captured+captured_bytes,p,n);captured_bytes+=n;}
 #endif
@@ -58,7 +82,7 @@ static void emit(const uint8_t *p,uint32_t n,uint32_t e){assert(p==output&&n<=PC
 static void fail(uint32_t e,esp_err_t error){if(valid(e)){++errors;last_error=error;live=false;}}
 static unsigned timing_calls;static uint64_t timing_residence;
 static void timing(uint32_t epoch,uint64_t received){assert(valid(epoch));assert(received<=(uint64_t)fake_clock);timing_residence=(uint64_t)fake_clock-received;++timing_calls;}
-static const chime_bt_decoder_callbacks_t callbacks={valid,emit,fail,timing};
+static const chime_bt_decoder_callbacks_t callbacks={.valid=valid,.pcm=emit,.fail=fail,.timing=timing};
 QueueHandle_t xQueueCreate(unsigned n,unsigned size){assert(n==RAW_DEPTH&&size==sizeof(packet_t));if(queue_fail)return NULL;head=count=0;return slots;}
 int xQueueSend(QueueHandle_t q,const void *p,uint32_t wait){assert(q==slots&&!wait);
 #if CONFIG_CHIME_BT_VENDOR_CODECS
@@ -72,8 +96,17 @@ int xQueueReceive(QueueHandle_t q,void *p,uint32_t wait){assert(q==slots);if(!co
 unsigned uxQueueMessagesWaiting(QueueHandle_t q){assert(q==slots);return count;}
 int64_t esp_timer_get_time(void){return fake_clock;}
 void vQueueDelete(QueueHandle_t q){assert(q==slots&&!count);}
-int xTaskCreatePinnedToCore(void (*f)(void *),const char *name,unsigned stack,void *arg,unsigned priority,TaskHandle_t *handle,int core){assert(core==DECODE_CORE);assert(!strcmp(name,"bt_decode")&&stack==6144&&!arg&&priority==5&&!handle);task_entry=f;return task_fail?0:pdPASS;}
-void vTaskDelay(uint32_t ms){assert(ms==5);if(auto_shutdown&&!atomic_load(&exited))task_entry(NULL);}
+int xTaskCreatePinnedToCore(void (*f)(void *),const char *name,unsigned stack,void *arg,unsigned priority,TaskHandle_t *handle,int core){assert(core==DECODE_CORE);assert(!strcmp(name,"bt_decode")&&stack==DECODE_STACK_BYTES&&!arg&&priority==5&&!handle);task_entry=f;return task_fail?0:pdPASS;}
+void vTaskDelay(uint32_t ticks){
+    if(ticks==1){
+        assert(capacity_enabled);++capacity_delays;fake_clock+=capacity_tick_us;
+        if(capacity_action==1)atomic_store(&stopping,true);
+        if(capacity_action==2)++generation;
+        if(capacity_release_after&&capacity_delays%capacity_release_after==0)capacity_free=128;
+        return;
+    }
+    assert(ticks==5);if(auto_shutdown&&!atomic_load(&exited))task_entry(NULL);
+}
 void vTaskDelete(void *p){assert(!p);}
 /* Test-only repair at the deallocator lets metadata fault injection use an
  * invalid data pointer without leaking its original allocation. No production
@@ -85,23 +118,24 @@ void esp_a2d_audio_buff_free(esp_a2d_audio_buff_t *p){
     assert(p->data);++frees;free(p->data);p->data=NULL;free(p);
 }
 static esp_a2d_audio_buff_t *buffer(unsigned size){esp_a2d_audio_buff_t *p=malloc(sizeof(*p));assert(p);p->timestamp=100;p->data_len=(uint16_t)size;p->data=calloc(size?size:1,1);assert(p->data);++allocs;return p;}
-esp_audio_err_t esp_aac_dec_open(void *cfg,uint32_t n,void **handle){esp_aac_dec_cfg_t *p=cfg;assert(n==sizeof(*p)&&p->sample_rate==(int32_t)expected_rate&&p->channel==expected_channels&&p->bits_per_sample==16&&p->no_adts_header&&!p->aac_plus_enable);++opens;if(open_fail)return -1;*handle=&decoder_token;return 0;}
-esp_audio_err_t esp_sbc_dec_open(void *cfg,uint32_t n,void **handle){esp_sbc_dec_cfg_t *p=cfg;assert(n==sizeof(*p)&&p->sbc_mode==ESP_SBC_MODE_STD&&p->ch_num==expected_channels&&!p->enable_plc);++opens;if(open_fail)return -1;*handle=&decoder_token;return 0;}
-esp_audio_err_t esp_aac_dec_close(void *h){assert(h==&decoder_token);++closes;return 0;}
-esp_audio_err_t esp_sbc_dec_close(void *h){return esp_aac_dec_close(h);}
-esp_audio_err_t esp_aac_dec_decode(void *h,esp_audio_dec_in_raw_t *in,esp_audio_dec_out_frame_t *out,esp_audio_dec_info_t *info){
-    assert(h==&decoder_token&&in->len&&out->len==PCM_BYTES&&in->consumed==0);++decoded;fake_clock+=timer_step;
-    in->consumed=in->len>2?2:in->len;out->decoded_size=expected_channels*2;
-    *info=(esp_audio_dec_info_t){.sample_rate=expected_rate,.channel=(uint8_t)expected_channels,.bits_per_sample=16};
-    if(invalidate_during_decode)++generation;
-    switch(mode){case 1:in->consumed=0;break;case 2:in->consumed=in->len+1;break;case 3:out->decoded_size=PCM_BYTES+4;break;case 4:out->decoded_size=1;break;case 5:info->sample_rate=96000;break;case 6:info->bits_per_sample=24;break;case 7:return ESP_AUDIO_ERR_BUFF_NOT_ENOUGH;case 8:return -33;case 9:out->decoded_size=0;break;}
-    return ESP_AUDIO_ERR_OK;
+static chime_s31_codec_t mock_codec;
+void *chime_worker_test_open(chime_s31_codec_t codec,unsigned rate,unsigned channels){
+    assert(rate==expected_rate&&channels==expected_channels);mock_codec=codec;++opens;
+    return open_fail?NULL:&decoder_token;
 }
-esp_audio_err_t esp_sbc_dec_decode(void *h,esp_audio_dec_in_raw_t *in,esp_audio_dec_out_frame_t *out,esp_audio_dec_info_t *info){return esp_aac_dec_decode(h,in,out,info);}
+void chime_worker_test_close(void *h){assert(h==&decoder_token);++closes;}
+int chime_worker_test_decode(void *h,chime_codec_input_t *in,chime_codec_output_t *out,chime_codec_info_t *info){
+    assert(h==&decoder_token&&in->len&&out->len==PCM_BYTES&&in->consumed==0);++decoded;
+    if(mock_codec==CHIME_S31_OPUS){in->consumed=in->len;out->decoded_size=3840;*info=(chime_codec_info_t){48000,2,16};return 0;}
+    if(mock_codec==CHIME_S31_APTX||mock_codec==CHIME_S31_APTX_HD){in->consumed=in->len;out->decoded_size=16;*info=(chime_codec_info_t){expected_rate,2,16};return 0;}
+    fake_clock+=timer_step;
+    in->consumed=in->len>2?2:in->len;out->decoded_size=expected_channels*2;
+    *info=(chime_codec_info_t){.sample_rate=expected_rate,.channel=(uint8_t)expected_channels,.bits_per_sample=16};
+    if(invalidate_during_decode)++generation;
+    switch(mode){case 1:in->consumed=0;break;case 2:in->consumed=in->len+1;break;case 3:out->decoded_size=PCM_BYTES+4;break;case 4:out->decoded_size=1;break;case 5:info->sample_rate=96000;break;case 6:info->bits_per_sample=24;break;case 7:return -2;case 8:return -33;case 9:out->decoded_size=0;break;}
+    return CHIME_CODEC_OK;
+}
 #if CONFIG_CHIME_BT_VENDOR_CODECS
-esp_audio_err_t esp_opus_dec_open(void *cfg,uint32_t n,void **handle){esp_opus_dec_cfg_t *p=cfg;assert(n==sizeof(*p)&&p->sample_rate==48000&&p->channel==2&&p->frame_duration==ESP_OPUS_DEC_FRAME_DURATION_20_MS&&!p->self_delimited);++opens;*handle=&decoder_token;return 0;}
-esp_audio_err_t esp_opus_dec_close(void *handle){return esp_aac_dec_close(handle);}
-esp_audio_err_t esp_opus_dec_decode(void *handle,esp_audio_dec_in_raw_t *in,esp_audio_dec_out_frame_t *out,esp_audio_dec_info_t *info){assert(handle==&decoder_token);++decoded;in->consumed=in->len;out->decoded_size=3840;*info=(esp_audio_dec_info_t){.sample_rate=48000,.channel=2,.bits_per_sample=16};return 0;}
 #if !CHIME_BT_REAL_LDAC
 void *chime_ldac_open(unsigned rate,unsigned channels){assert(rate==48000&&channels==2);++opens;return &decoder_token;}
 void chime_ldac_close(void *h){assert(h==&decoder_token);++closes;}
@@ -126,11 +160,8 @@ static esp_a2d_audio_buff_t *lhdc_packet(unsigned n,unsigned seq){
     return p;
 }
 #endif
-struct aptx_context *aptx_init(int hd){assert(hd==0||hd==1);++opens;return (struct aptx_context *)&decoder_token;}
-void aptx_finish(struct aptx_context *h){assert(h==(struct aptx_context *)&decoder_token);++closes;}
-size_t aptx_decode16(struct aptx_context *h,const unsigned char *in,size_t len,unsigned char *out,size_t max,size_t *written){assert(h==(struct aptx_context *)&decoder_token&&in&&out==output&&max==PCM_BYTES);++decoded;*written=16;return len;}
 #endif
-static void start(void){live=true;mode=0;expected_rate=48000;expected_channels=2;assert(chime_bt_decoder_start(&callbacks)==0);assert(chime_bt_decoder_start(&callbacks)==ESP_ERR_INVALID_STATE);}
+static void start(void){capacity_enabled=false;capacity_free=capacity_delays=capacity_release_after=capacity_action=0;capacity_tick_us=1000;live=true;mode=0;expected_rate=48000;expected_channels=2;assert(chime_bt_decoder_start(&callbacks)==0);assert(chime_bt_decoder_start(&callbacks)==ESP_ERR_INVALID_STATE);}
 static void run(void){task_entry(NULL);assert(chime_bt_decoder_stop());assert(allocs==frees);++generation;}
 int main(void)
 {
@@ -209,6 +240,19 @@ int main(void)
           case 3:ld->data[2]=0x10;break;case 4:ld->data[3]=4;break;case 5:mode=1;break;case 6:ld->data[0]=0;break;}
         chime_bt_decoder_submit(ld,generation,CHIME_BT_CODEC_LDAC,48000,2);run();assert(errors==before_error+1&&emits==before_emits);
     }
+    /* Diagnostic duplicate evidence never changes admission. Same ts+CRC
+     * is observed, not silently suppressed (legitimate fragments/silence). */
+    start();unsigned duplicate_emits=emits;
+    for(unsigned i=0;i<3;++i){
+        ld=buffer(5);ld->data[0]=1;ld->data[1]=0xaa;ld->data[2]=0x30;
+        ld->timestamp=i<2?100U:228U;
+        chime_bt_decoder_submit(ld,generation,CHIME_BT_CODEC_LDAC,48000,2);
+    }
+    run();assert(emits==duplicate_emits+3);
+    assert(chime_bt_decoder_snapshot(&stats)&&stats.ldac_frames==3&&stats.ldac_pcm_frames==384);
+    assert(stats.ldac_same_input==1&&stats.ldac_ts_same==1&&stats.ldac_ts_delta==128&&stats.ldac_previous_frames==128);
+    start();assert(chime_bt_decoder_snapshot(&stats)&&!stats.ldac_frames&&!stats.ldac_pcm_frames&&!stats.ldac_same_input);
+    run();
     start();ldac_emits=emits;
     ld=buffer(3);ld->data[0]=0xc2;ld->data[1]=0xaa;ld->data[2]=0x30;
     chime_bt_decoder_submit(ld,generation,CHIME_BT_CODEC_LDAC,48000,2);
@@ -290,6 +334,79 @@ int main(void)
     puts("PASS actual worker + reference LHDC decoder: 506-byte 09:02:7d:04, all low bits, grouped frames up to RAW_MAX_BYTES, 44.1/48k and identical PCM to low-zero packets");
 #endif
 #if CHIME_BT_REAL_LDAC
+    /* A 15-frame A2DP burst must be admitted frame-by-frame, never decoded
+     * past capacity. Compare ordered PCM with the same stateful real backend.
+     * Repeat at 44.1/48k; no other real codec is evaluated here. */
+    for(unsigned rate_index=0;rate_index<2;++rate_index){
+        unsigned rate=rate_index?44100:48000;
+        char filename[128];snprintf(filename,sizeof(filename),"software/tests/bluetooth/fixtures/ldac/%u-2.ldac",rate);
+        uint8_t encoded[2048],reference[15*512];FILE *input=fopen(filename,"rb");assert(input);
+        size_t loaded=fread(encoded,1,sizeof(encoded),input);fclose(input);
+        size_t frame=chime_ldac_frame_bytes(encoded,loaded,rate);assert(frame&&frame*15U+1U<=RAW_MAX_BYTES);
+        void *reference_decoder=chime_ldac_open(rate,2);assert(reference_decoder);
+        for(unsigned j=0;j<15;++j)assert(chime_ldac_decode(reference_decoder,encoded,frame,reference+j*512,512)==512);
+        chime_ldac_close(reference_decoder);
+        for(unsigned scenario=0;scenario<11;++scenario){
+            start();expected_rate=rate;capacity_enabled=true;cb.pcm_capacity=capacity;
+            /* 0: immediate then wait per remaining frame. 1:127 is insufficient.
+             * 2: timeout. 3/4: STOP/epoch change cancel while blocked.
+             * 5: late space after oversleep must not evade deadline.
+             * 6: malformed aggregate rejected before any capacity wait/PCM.
+             * 7/8/9: timeout/STOP/epoch after the first PCM frame.
+             * 10: whole aggregate fits without waiting. */
+            capacity_free=scenario==10?15*128:(scenario==0||scenario>=7)?128:127;
+            capacity_release_after=scenario<2?2:scenario==5?1:0;
+            capacity_action=(scenario==3||scenario==8)?1:(scenario==4||scenario==9)?2:0;
+            if(scenario==5)capacity_tick_us=LDAC_PCM_CAPACITY_TIMEOUT_US+1000U;
+            unsigned before_errors=errors,before_pcm=emits;
+            esp_a2d_audio_buff_t *burst=buffer((unsigned)frame*15U+1U);burst->data[0]=15;
+            for(unsigned j=0;j<15;++j)memcpy(burst->data+1+j*frame,encoded,frame);
+            if(scenario==6)burst->data[1+14*frame]=0;
+            capture=true;captured_bytes=0;
+#if CHIME_BT_CAPTURE_LOG
+            rejected_count=diagnostic_lines=0;
+#endif
+            chime_bt_decoder_submit(burst,generation,CHIME_BT_CODEC_LDAC,rate,2);run();capture=false;
+            assert(chime_bt_decoder_snapshot(&stats));
+            if(scenario<2||scenario==10){
+                unsigned waits=scenario==10?0:scenario==0?14:15;
+                assert(errors==before_errors&&emits==before_pcm+15&&captured_bytes==sizeof(reference));
+                assert(!memcmp(captured,reference,sizeof(reference)));
+                assert(capacity_delays==waits*2&&stats.capacity_waits==waits&&!stats.capacity_timeouts);
+                assert(stats.capacity_wait_us==waits*2000&&stats.max_capacity_wait_us==stats.capacity_wait_us);
+                assert(stats.decode_us==0&&stats.packet_us>=stats.capacity_wait_us); /* fake clock excludes real host CPU */
+            }else{
+                unsigned admitted=scenario>=7?1:0;
+                assert(emits==before_pcm+admitted&&captured_bytes==admitted*512&&stats.ldac_pcm_frames==admitted*128);
+                assert(!memcmp(captured,reference,captured_bytes));
+                if(scenario==2||scenario==5||scenario==7){
+                    assert(errors==before_errors+1&&last_error==ESP_ERR_TIMEOUT&&stats.capacity_timeouts==1);
+                    assert(stats.capacity_waits==1&&stats.capacity_wait_us>=LDAC_PCM_CAPACITY_TIMEOUT_US);
+                    assert(capacity_delays==(scenario==5?1U:100U));
+                }else if(scenario!=6){
+                    assert(errors==before_errors&&!stats.capacity_timeouts&&capacity_delays==1);
+                }else{
+                    assert(errors==before_errors+1&&last_error==ESP_ERR_INVALID_SIZE&&!capacity_delays&&!stats.capacity_waits);
+                }
+            }
+        }
+    }
+    start();assert(chime_bt_decoder_snapshot(&stats)&&!stats.capacity_wait_us&&!stats.max_capacity_wait_us&&!stats.capacity_waits&&!stats.capacity_timeouts);run();
+    /* Compute service makes progress between EACH frame before capacity wait,
+     * preventing a full PCM queue from deadlocking a co-owned SRC producer. */
+    {
+        uint8_t encoded[2048];FILE *input=fopen("software/tests/bluetooth/fixtures/ldac/48000-2.ldac","rb");assert(input);
+        size_t n=fread(encoded,1,sizeof(encoded),input);fclose(input);
+        size_t frame=chime_ldac_frame_bytes(encoded,n,48000);assert(frame);
+        start();capacity_enabled=true;capacity_free=0;cb.pcm_capacity=capacity;cb.service=service;
+        service_calls=0;service_refill=1;unsigned prior=emits;
+        esp_a2d_audio_buff_t *burst=buffer((unsigned)frame*15+1);burst->data[0]=15;
+        for(unsigned j=0;j<15;++j)memcpy(burst->data+1+j*frame,encoded,frame);
+        chime_bt_decoder_submit(burst,generation,CHIME_BT_CODEC_LDAC,48000,2);
+        run();service_refill=0;assert(emits==prior+15&&service_calls>=15&&!capacity_delays);
+        puts("PASS actual LDAC worker: bounded service between frames resolves producer/PCM capacity backpressure without waiting for consumer");
+    }
+    puts("PASS real LDAC capacity contract: 15-frame bursts bit-exact/ordered, threshold, bounded timeout, STOP/epoch cancellation, prevalidation, stats reset at 44.1/48k");
     /* Actual worker + frame wrapper + selected reference core. Adaptive encoder
      * record boundaries/counts are preserved; no reopen between bitrate changes.
      * Compare every PCM byte to direct sequential reference-frame decode. */
@@ -317,7 +434,11 @@ int main(void)
         assert(checked+captured_bytes<=total&&!memcmp(captured,expected+checked,captured_bytes));checked+=captured_bytes;
         esp_a2d_audio_buff_free(l);
     }
-    fclose(f);capture=false;assert(checked==total);run();
+    fclose(f);capture=false;assert(checked==total);
+    assert(chime_bt_decoder_snapshot(&stats)&&stats.ldac_pcm_frames==checked/4U);
+    assert((uint64_t)stats.ldac_frames*128U==stats.ldac_pcm_frames);
+    puts("PASS real LDAC packet replay accounting: each validated encoded frame produces exactly 128 stereo PCM frames, progress visible inside admission callback");
+    run();
     /* No PCM from partially valid packets, and rejection after any frame
      * index is bounded. Prefix 05:aa:32:00 alone cannot reveal frame2..5. */
     f=fopen(fixture,"rb");assert(f);unsigned bytes=0,frames=0;

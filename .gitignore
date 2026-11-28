@@ -37,15 +37,20 @@ pnpm-debug.log*
 # ESP-IDF build output
 software/build/
 software/build-bridge/
+software/build-apll-follow/
 software/sdkconfig.old
 
 # Creo Parametric session and transient output
-# Creo native sources stay private; public exports keep STEP / 3MF only.
-# Already tracked sources remain in private history; use the public exporter.
+# Creo native sources belong in Codeup, not the public snapshot.
 **/trail.txt*
 **/std.out*
 **/*__out.log.*
 **/creo_*.log*
+/mechanical/**/*.log
+/mechanical/**/*_log.xml
+
+# Same board reference is tracked under back-panel/pcb/.
+/mechanical/satellite/dsp-board.step
 
 # Local Java / J-Link build output
 **/build/classes/
@@ -64,11 +69,3 @@ software/managed_components/
 
 # Pinned upstream build metadata is source, not a local merge backup.
 !/software/components/chime_codec_reference/vendor/esp-idf/components/bt/host/bluedroid/external/libldac-dec/CMakeLists.orig
-
-# Private mechanical authoring sources (including Creo numbered revisions)
-/mechanical/**/*.prt
-/mechanical/**/*.prt.*
-/mechanical/**/*.asm
-/mechanical/**/*.asm.*
-/mechanical/**/*.drw
-/mechanical/**/*.drw.*

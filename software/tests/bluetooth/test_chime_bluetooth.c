@@ -3,14 +3,37 @@
 #include "chime_bt_decoder.h"
 #include "chime_bluetooth.h"
 #include "chime_bt_pcm.h"
+#include "chime_render.h"
 #include "bt_test_types.h"
 #include "freertos/FreeRTOS.h"
 #include <assert.h>
 #include <stdio.h>
 #include <string.h>
+static unsigned render_snapshots;
+void chime_render_snapshot(chime_render_stats_t *s){
+    memset(s,0,sizeof(*s));++render_snapshots;
+    s->src_blocks=54;s->src_total_us=162000;s->src_active=true;s->src_inflight_us=1700;
+}
+bool chime_bt_decoder_snapshot(chime_bt_decoder_stats_t *s){memset(s,0,sizeof(*s));return false;}
 static unsigned calls,fail_at,depth,notification;
 static int controller,host;static bool no_profile_ack,disable_error;
 static int64_t now;
+#if CHIME_BT_CAPTURE_LOG
+#include <stdarg.h>
+static char fault_pcm[512],fault_start[512],fault_mix[512];
+static unsigned fault_headers,fault_bins;
+void chime_test_log(const char *tag,const char *format,...){
+    (void)tag;assert(!depth);char text[768];va_list args;va_start(args,format);
+    int n=vsnprintf(text,sizeof(text),format,args);va_end(args);assert(n>=0&&(size_t)n<sizeof(text));
+    if(!strncmp(text,"stream stopped ",15)){
+        assert(render_snapshots>fault_headers);++fault_headers;
+    }
+    if(!strncmp(text,"fault PCM ",10)){assert(n<(int)sizeof(fault_pcm));memcpy(fault_pcm,text,(size_t)n+1);}
+    if(!strncmp(text,"fault START ",12)){assert(n<(int)sizeof(fault_start));memcpy(fault_start,text,(size_t)n+1);}
+    if(!strncmp(text,"fault MIX ",10)){assert(n<(int)sizeof(fault_mix));memcpy(fault_mix,text,(size_t)n+1);}
+    if(!strncmp(text,"fault FLOW ",11))++fault_bins;
+}
+#endif
 static void (*a2dp)(esp_a2d_cb_event_t,esp_a2d_cb_param_t *);
 static void (*gap)(esp_bt_gap_cb_event_t,esp_bt_gap_cb_param_t *);
 static void (*avrc)(esp_avrc_tg_cb_event_t,esp_avrc_tg_cb_param_t *);
@@ -27,7 +50,7 @@ esp_err_t chime_bt_decoder_start(const chime_bt_decoder_callbacks_t *c){dec_cb=*
 bool chime_bt_decoder_stop(void){if(dec_stop_failure)return false;dec_live=false;return true;}
 void esp_a2d_audio_buff_free(esp_a2d_audio_buff_t *buffer){assert(buffer);++freed;}
 void chime_bt_decoder_submit(esp_a2d_audio_buff_t *b,uint32_t epoch,chime_bt_codec_t codec,unsigned rate,unsigned channels){
-    assert(dec_live&&rate&&(codec==CHIME_BT_CODEC_SBC||codec==CHIME_BT_CODEC_AAC));++submitted;
+    assert(dec_live&&rate&&(codec==CHIME_BT_CODEC_SBC||codec==CHIME_BT_CODEC_AAC||codec==CHIME_BT_CODEC_LDAC));++submitted;
     if(dec_cb.valid(epoch)){
         if(b->data_len%(channels*2))dec_cb.fail(epoch,ESP_ERR_INVALID_SIZE);
         else {if(dec_cb.timing)dec_cb.timing(epoch,(uint64_t)now-3000U);dec_cb.pcm(b->data,b->data_len,epoch);}
@@ -238,6 +261,101 @@ esp_err_t esp_a2d_sink_deinit(void){if(!no_profile_ack){esp_a2d_cb_param_t p={0}
 static void connection(unsigned state){esp_a2d_cb_param_t p={0};p.conn_stat.state=state;a2dp(ESP_A2D_CONNECTION_STATE_EVT,&p);}
 static void audio(bool play){esp_a2d_cb_param_t p={0};p.audio_stat.state=play?ESP_A2D_AUDIO_STATE_STARTED:ESP_A2D_AUDIO_STATE_SUSPEND;a2dp(ESP_A2D_AUDIO_STATE_EVT,&p);}
 static void format(unsigned rate,unsigned channels){esp_a2d_cb_param_t p={0};p.audio_cfg.mcc.cie.sbc_info.samp_freq=rate;p.audio_cfg.mcc.cie.sbc_info.ch_mode=channels;a2dp(ESP_A2D_AUDIO_CFG_EVT,&p);}
+#if CONFIG_CHIME_LDAC_REPLAY_TEST
+static void test_replay_session(void)
+{
+    uint32_t token=0;chime_bluetooth_status_t s;uint8_t data[512]={0};
+    esp_a2d_audio_buff_t b={.data_len=sizeof(data),.data=data};
+    assert(chime_bluetooth_replay_begin(96000,&token)==ESP_ERR_INVALID_ARG);
+    assert(chime_bluetooth_replay_begin(48000,NULL)==ESP_ERR_INVALID_ARG);
+    assert(chime_bluetooth_replay_begin(48000,&token)==ESP_OK);
+    chime_bluetooth_snapshot(&s);
+    assert(s.simulated&&!s.connected&&!s.playing&&!s.output_active&&s.volume==-30*256);
+    assert(!chime_bluetooth_connected()&&chime_bluetooth_wanted());
+    unsigned n=freed,old_submitted=submitted;
+    assert(!chime_bluetooth_replay_submit(&b,token)); /* owner not admitted yet */
+    assert(freed==n+1&&submitted==old_submitted);
+    assert(chime_bluetooth_output_begin()==ESP_OK&&dec_cb.valid(token));
+    assert(chime_bluetooth_replay_begin(44100,&token)==ESP_ERR_INVALID_STATE);
+    assert(chime_bluetooth_replay_submit(&b,token)&&submitted==old_submitted+1);
+    chime_bluetooth_snapshot(&s);assert(s.packets&&s.queued_frames==128);
+#if CONFIG_CHIME_LDAC_APLL_FOLLOW
+    chime_bluetooth_output_end();assert(chime_bluetooth_output_begin_clocked(true)==ESP_OK);
+    for(unsigned i=0;i<128;++i){data[4*i]=0;data[4*i+1]=0x80;data[4*i+2]=0xff;data[4*i+3]=0x7f;}
+    for(unsigned i=0;i<36;++i)dec_cb.pcm(data,sizeof(data),token);
+    int32_t direct[256];bool direct_ready=false;
+    assert(chime_bluetooth_render_q27(direct,128,&direct_ready)==ESP_OK&&direct_ready);
+    for(unsigned i=0;i<128;++i)assert(direct[2*i]==-134217728&&direct[2*i+1]==134213632);
+    chime_bluetooth_snapshot(&s);assert(s.clock_follow&&s.consumed_frames==128&&s.drift_ppm==0);
+    unsigned fixed_target=s.target_frames;now+=90000;dec_cb.pcm(data,sizeof(data),token);
+    chime_bluetooth_snapshot(&s);assert(s.target_frames==fixed_target);
+    chime_bluetooth_output_end();chime_bluetooth_snapshot(&s);assert(!s.clock_follow);
+    assert(chime_bluetooth_output_begin()==ESP_OK);
+#endif
+    chime_bluetooth_replay_end(token+1,ESP_FAIL);assert(dec_cb.valid(token));
+    chime_bluetooth_replay_end(token,ESP_OK);
+    assert(!chime_bluetooth_wanted()&&!dec_cb.valid(token));
+    dec_cb.pcm(data,sizeof(data),token);chime_bluetooth_snapshot(&s);assert(!s.queued_frames&&!s.simulated);
+    assert(!chime_bluetooth_replay_submit(&b,token));
+    assert(chime_bluetooth_replay_begin(44100,&token)==ESP_OK);
+#if CONFIG_CHIME_LDAC_APLL_FOLLOW
+    assert(chime_bluetooth_output_begin_clocked(true)==ESP_ERR_INVALID_STATE);
+#endif
+    assert(chime_bluetooth_output_begin()==ESP_OK);
+    connection(ESP_A2D_CONNECTION_STATE_CONNECTED); /* real link preempts */
+    chime_bluetooth_snapshot(&s);assert(s.connected&&!s.simulated&&s.epoch!=token&&!s.queued_frames);
+    chime_bluetooth_replay_end(token,ESP_FAIL);chime_bluetooth_snapshot(&s);assert(s.connected&&!s.error);
+    assert(chime_bluetooth_replay_begin(48000,&token)==ESP_ERR_INVALID_STATE);
+    connection(ESP_A2D_CONNECTION_STATE_DISCONNECTED);
+    assert(chime_bluetooth_replay_begin(48000,&token)==ESP_OK);
+    assert(chime_bluetooth_output_begin()==ESP_OK);dec_cb.fail(token,ESP_ERR_NO_MEM);
+    assert(!dec_cb.valid(token)&&!chime_bluetooth_wanted());
+    chime_bluetooth_replay_end(token,ESP_OK); /* STOP revokes faulted session but cannot clear its error */
+    chime_bluetooth_snapshot(&s);assert(s.error==ESP_ERR_NO_MEM&&!s.simulated);
+    assert(chime_bluetooth_replay_begin(44100,&token)==ESP_OK);
+    /* A real disconnect transition revokes the new session too. */
+    connection(ESP_A2D_CONNECTION_STATE_DISCONNECTED);chime_bluetooth_snapshot(&s);assert(!s.simulated);
+}
+#endif
+#if CONFIG_CHIME_LDAC_PIPELINE_TEST
+static void test_pipeline(void)
+{
+    assert(dec_cb.service);
+    uint8_t caps[CHIME_VENDOR_WIRE_MAX],chosen[CHIME_VENDOR_WIRE_MAX];
+    chime_vendor_capability(CHIME_VENDOR_LDAC,caps);assert(chime_vendor_select(caps,chosen));
+    esp_a2d_cb_param_t vendor={0};vendor.audio_cfg.mcc.type=ESP_A2D_MCT_NON_A2DP;
+    vendor.audio_cfg.mcc.cie.vendor[0]=(uint8_t)(chosen[0]-2);
+    memcpy(vendor.audio_cfg.mcc.cie.vendor+1,chosen+3,chosen[0]-2U);
+    a2dp(ESP_A2D_AUDIO_CFG_EVT,&vendor);audio(true);
+    assert(chime_bluetooth_wanted()&&chime_bluetooth_output_begin()==ESP_OK);
+    uint32_t epoch=chime_bluetooth_epoch();uint8_t input[4096];memset(input,1,sizeof(input));
+    for(unsigned i=0;i<6;++i)dec_cb.pcm(input,1024,epoch);
+    int32_t pcm32[256];bool ready=true;chime_bluetooth_status_t st;
+    assert(chime_bluetooth_render_q27(pcm32,128,&ready)==ESP_OK&&!ready);
+    chime_bluetooth_snapshot(&st);assert(st.pipeline_enabled&&!st.pipeline_produced&&st.queued_frames==1536);
+    /* Consumer does not prepare/FIR or consume the input queue. */
+    for(unsigned i=0;i<16;++i)dec_cb.pcm(input,1024,epoch);
+    dec_cb.service(epoch);chime_bluetooth_snapshot(&st);assert(st.pipeline_produced==1&&st.pipeline_ready_blocks==1);
+    assert(chime_bluetooth_render_q27(pcm32,128,&ready)==ESP_OK&&!ready);
+    dec_cb.service(epoch);
+    assert(chime_bluetooth_render_q27(pcm32,128,&ready)==ESP_OK&&ready);
+    for(unsigned i=0;i<8;++i)dec_cb.service(epoch);
+    chime_bluetooth_snapshot(&st);assert(st.pipeline_ready_blocks==4&&st.pipeline_high_water==4);
+    unsigned produced=st.pipeline_produced,queued=st.queued_frames;
+    dec_cb.service(epoch);chime_bluetooth_snapshot(&st);
+    assert(st.pipeline_produced==produced&&st.queued_frames==queued);
+    for(unsigned i=0;i<4;++i)assert(chime_bluetooth_render_q27(pcm32,128,&ready)==ESP_OK&&ready);
+    assert(chime_bluetooth_render_q27(pcm32,128,&ready)==ESP_OK&&!ready);
+    chime_bluetooth_snapshot(&st);assert(st.pipeline_underruns==1);
+    chime_bluetooth_output_end();assert(chime_bluetooth_render_q27(pcm32,128,&ready)==ESP_ERR_INVALID_STATE);
+    assert(chime_bluetooth_output_begin()==ESP_OK);chime_bluetooth_snapshot(&st);
+    assert(!st.pipeline_ready_blocks&&!st.pipeline_produced&&!st.pipeline_underruns);
+    audio(false);audio(true);assert(chime_bluetooth_output_begin()==ESP_OK);
+    dec_cb.service(epoch);chime_bluetooth_snapshot(&st);assert(!st.pipeline_ready_blocks&&!st.pipeline_produced);
+    chime_bluetooth_output_end();format(ESP_A2D_SBC_CIE_SF_48K,ESP_A2D_SBC_CIE_CH_MODE_STEREO);
+    puts("PASS actual LDAC pipeline callbacks: CPU0 consumption-only, CPU1 service, bounded ready bridge, backpressure, underrun, STOP/restart/stale epoch");
+}
+#endif
 int main(void)
 {
     assert(chime_bluetooth_start()==0);unsigned init_calls=calls;chime_bluetooth_stop();
@@ -330,6 +448,12 @@ int main(void)
     assert(chime_bluetooth_render(output,128,&ready)==ESP_OK&&ready);
     audio(false);audio(true);assert(chime_bluetooth_wanted());assert(chime_bluetooth_output_begin()==0);
     for(unsigned i=0;i<9;++i)pcm(data,sizeof(data));chime_bluetooth_snapshot(&s);assert(s.overflows==1&&s.connected&&s.error==ESP_ERR_NO_MEM);
+#if CHIME_BT_CAPTURE_LOG
+    assert(fault_headers&&fault_bins);
+    assert(strstr(fault_pcm,"pushed=8192 consumed=0 rendered=0 discarded=0"));
+    assert(strstr(fault_start,"first_pcm_us=0 first_render_us=4294967295"));
+    assert(strstr(fault_mix,"src_blocks=54 src_avg_us=3000")&&strstr(fault_mix,"src_active=1 src_inflight_us=1700"));
+#endif
     format(ESP_A2D_SBC_CIE_SF_48K,ESP_A2D_SBC_CIE_CH_MODE_MONO);assert(chime_bluetooth_wanted());
     assert(chime_bluetooth_output_begin()==0);
     pcm(data,1);chime_bluetooth_snapshot(&s);assert(s.error==ESP_ERR_INVALID_SIZE&&s.connected);
@@ -346,16 +470,20 @@ int main(void)
     chime_bluetooth_snapshot(&s);
     assert(freed==dropped_before+64&&submitted==submitted_before&&s.queued_frames==0&&s.error==0);
     assert(chime_bluetooth_wanted()&&!dec_cb.valid(pending));
+    assert(dec_cb.pcm_capacity&&dec_cb.pcm_capacity(pending)==0);
     assert(chime_bluetooth_output_begin()==0&&dec_cb.valid(pending));
+    assert(dec_cb.pcm_capacity(pending)==8192);
     raw(0,&pending_buffer);chime_bluetooth_snapshot(&s);
     assert(submitted==submitted_before+1&&s.queued_frames==128&&s.error==0);
-    chime_bluetooth_output_end();assert(!dec_cb.valid(pending));
+    assert(dec_cb.pcm_capacity(pending)==8192-128);
+    chime_bluetooth_output_end();assert(!dec_cb.valid(pending)&&dec_cb.pcm_capacity(pending)==0);
     for(unsigned i=0;i<64;++i)raw(0,&pending_buffer);
     dec_cb.pcm(data,512,pending);dec_cb.fail(pending,ESP_ERR_INVALID_SIZE);
     chime_bluetooth_snapshot(&s);assert(s.queued_frames==0&&s.error==0&&chime_bluetooth_wanted());
     /* Decode begun in an earlier epoch must not enqueue PCM or latch errors. */
     format(ESP_A2D_SBC_CIE_SF_48K,ESP_A2D_SBC_CIE_CH_MODE_STEREO);
     uint32_t old=chime_bluetooth_epoch();audio(false);audio(true);
+    assert(dec_cb.pcm_capacity(old)==0);
     dec_cb.pcm(data,sizeof(data),old);dec_cb.fail(old,ESP_FAIL);
     chime_bluetooth_snapshot(&s);assert(s.error==0&&s.queued_frames==0);
     unsigned n=freed,sub=submitted;esp_a2d_audio_buff_t b={.data_len=4,.data=data};raw(77,&b);assert(freed==n+1&&submitted==sub);
@@ -387,6 +515,9 @@ int main(void)
         a2dp(ESP_A2D_AUDIO_CFG_EVT,&vendor);assert(!chime_bluetooth_wanted());
     }
 #endif
+#if CONFIG_CHIME_LDAC_PIPELINE_TEST
+    test_pipeline();
+#endif
     test_recovery();
     test_delay_reports();
     connection(ESP_A2D_CONNECTION_STATE_DISCONNECTING);assert(chime_bluetooth_connected());
@@ -401,6 +532,9 @@ int main(void)
     avrc(ESP_AVRC_TG_CONNECTION_STATE_EVT,&(esp_avrc_tg_cb_param_t){.conn_stat={.connected=false}});
     assert(chime_bluetooth_adjust_volume(2)==ESP_ERR_INVALID_STATE);
     connection(ESP_A2D_CONNECTION_STATE_DISCONNECTED);
+#if CONFIG_CHIME_LDAC_REPLAY_TEST
+    test_replay_session();
+#endif
     gap(ESP_BT_GAP_PIN_REQ_EVT,&(esp_bt_gap_cb_param_t){0});gap(ESP_BT_GAP_CFM_REQ_EVT,&(esp_bt_gap_cb_param_t){0});
     chime_bluetooth_stop();assert(!host&&!controller);chime_bluetooth_stop();
     assert(chime_bluetooth_start()==0);disable_error=true;chime_bluetooth_stop();

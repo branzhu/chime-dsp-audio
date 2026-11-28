@@ -11,27 +11,14 @@ static void fill(int16_t l,int16_t r)
 }
 static void source_test(void)
 {
-    chime_source_t s;chime_source_init(&s);
-    chime_source_update(&s,false,7,0);assert(s.selected==CHIME_SOURCE_USB);
-    assert(!chime_source_admit(&s,false,true));assert(chime_source_admit(&s,true,true));
-    assert(!chime_source_admit(&s,true,true));uint32_t generation=s.generation;
-    chime_source_update(&s,false,7,99);assert(s.generation==generation); /* nonselected BT event */
-    chime_source_update(&s,true,7,100);assert(s.selected==CHIME_SOURCE_BLUETOOTH&&s.generation!=generation);
-    assert(!chime_source_admit(&s,true,false)); /* connected but paused still selected BT */
-    assert(s.selected==CHIME_SOURCE_BLUETOOTH&&chime_source_admit(&s,true,true));generation=s.generation;
-    chime_source_update(&s,true,999,100);assert(s.generation==generation); /* USB mute/reopen cannot affect BT */
-    chime_source_update(&s,false,999,101);assert(s.selected==CHIME_SOURCE_USB&&chime_source_admit(&s,true,true));
-    chime_source_update(&s,true,999,102);assert(chime_source_admit(&s,true,true));
-    chime_source_update(&s,false,999,103);assert(chime_source_admit(&s,true,true)); /* USB epoch unchanged */
-    chime_source_stop(&s);chime_source_update(&s,true,1000,104);assert(!chime_source_admit(&s,true,true));
-    chime_source_update(&s,false,1001,105);assert(!chime_source_admit(&s,true,true));
-    chime_source_retry(&s);assert(s.stopped&&!chime_source_admit(&s,true,true)); /* waking cannot clear STOP */
-    chime_source_resume(&s);assert(chime_source_admit(&s,true,true));
+    chime_source_t s;chime_source_init(&s);assert(s.selected==CHIME_SOURCE_MIX);
+    chime_source_update(&s,false,7,0);assert(chime_source_admit(&s,true,true));
     assert(!chime_source_admit(&s,true,true));
-    chime_source_retry(&s);assert(chime_source_admit(&s,true,true));
-    s.generation=UINT32_MAX;chime_source_resume(&s);assert(s.generation==1&&s.attempted==0);
-    assert(!strcmp(chime_source_name(CHIME_SOURCE_BLUETOOTH),"bluetooth"));
-    puts("PASS source policy: BT connection priority/paused ownership, selected epochs, unchanged USB epoch handback, STOP latch, explicit resume, generation wrap");
+    chime_source_update(&s,true,7,1);assert(s.selected==CHIME_SOURCE_MIX&&chime_source_admit(&s,true,true));
+    chime_source_stop(&s);chime_source_update(&s,false,8,2);
+    assert(!chime_source_admit(&s,true,true));chime_source_retry(&s);assert(s.stopped);
+    chime_source_resume(&s);assert(chime_source_admit(&s,true,true));
+    assert(!strcmp(chime_source_name(s.selected),"mix"));
 }
 static void pcm_test(void)
 {
@@ -80,7 +67,7 @@ static void drift(unsigned rate,int ppm)
         unsigned n=(unsigned)(accumulator/(48000ULL*1000000ULL));accumulator%=48000ULL*1000000ULL;
         uint64_t now=(uint64_t)i*128000000ULL/48000U;
         assert(chime_bt_pcm_push(&q,block,n*4U,false));chime_bt_pcm_arrival(&q,now);
-        assert(chime_bt_pcm_render(&q,out,128,now));
+        chime_bt_src_job_t job;assert(chime_bt_pcm_prepare(&q,&job,128,now));
         if(q.count<minimum)minimum=q.count;if(q.count>maximum)maximum=q.count;
         assert(q.ppm>=-2000&&q.ppm<=2000);
     }

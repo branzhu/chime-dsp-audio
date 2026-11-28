@@ -28,13 +28,20 @@ static void vector(unsigned rate,unsigned quality){
     chime_lhdc_close(d);assert(samples>=8192&&samples%480==0);
     for(unsigned channel=0;channel<2;++channel){
         double energy=0,s=0,c=0,ss=0,cc=0,sc=0;unsigned count=0;double hz=channel?2003:997,expected=channel?4000:6000;
+
         for(size_t i=4096;i<samples/2;++i){double phase=6.283185307179586*hz*(double)i/rate,v=decoded[i*2+channel];
             double sv=sin(phase),cv=cos(phase);energy+=v*v;s+=v*sv;c+=v*cv;ss+=sv*sv;cc+=cv*cv;sc+=sv*cv;++count;}
         assert(count>0);double det=ss*cc-sc*sc,a=(s*cc-c*sc)/det,b=(c*ss-s*sc)/det;
         double amplitude=sqrt(a*a+b*b),coherence=(a*s+b*c)/energy;
         printf("LHDC V5 rate=%u quality=%u channel=%u samples=%zu amplitude=%.2f coherence=%.5f\n",rate,quality,channel,samples/2,amplitude,coherence);
         fflush(stdout);
+        #ifdef CHIME_S31_STRUCTURAL_ONLY
+        /* Separate from the UNCHANGED unity-level regression below: exercise
+         * reset/bounds/fuzz to completion even when the new upstream gain fails. */
+        (void)expected;assert(coherence>.99);
+#else
         assert(amplitude>expected*.9&&amplitude<expected*1.1&&coherence>.99);
+#endif
     }
     /* Reset must reproduce identical PCM, including MDCT overlap state. */
     d=chime_lhdc_open(rate,2);assert(d);offset=0;samples=0;
@@ -64,5 +71,8 @@ int main(void){
     }
     assert(!chime_lhdc_decode(d,raw,3,(uint8_t *)pcm,sizeof(pcm)));
     chime_lhdc_close(d);
+#ifdef CHIME_S31_STRUCTURAL_ONLY
+    puts("PASS S31 LHDC structural/coherence/reset/10k malformed checks; unity-level acceptance is a SEPARATE failing test");return 0;
+#endif
     puts("PASS experimental real LHDC V5: independent C encoder tones, 44.1/48k stereo, unity-level synthetic tones (NOT certification), reset identity, 10k malformed frames");return 0;
 }

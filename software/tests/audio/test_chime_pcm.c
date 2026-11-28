@@ -52,6 +52,11 @@ int main(void)
         }
         chime_pcm_convert(pair,out,1,-1);assert(out[0]==0&&out[1]==0);
     }
+    assert(chime_pcm_gain_q30(0)==1073741824);
+    assert(chime_pcm_gain_q30(256)==1073741824);
+    assert(chime_pcm_gain_q30(-60*256)==1073742);
+    for(int db=-60;db<0;++db)assert(chime_pcm_gain_q30(db*256)<chime_pcm_gain_q30((db+1)*256));
+    puts("PASS Q2.30 source gains: unity, clamps, -60dB precision and monotonicity");
     puts("PASS exhaustive PCM16 range: exact unity, all 61 master dB steps, clamped gain, signed endpoints, channel isolation, 24bit alignment and no overflow");
     puts("PASS PCM meter: independent L/R input16 and exact output24 peaks/nonzero counts, silence, zero gain, accumulation, INT32_MIN");
     puts("PASS USB PCM16 LE stereo sign/channel conversion, 24-in-32 alignment, unity full scale (no fixed ceiling), master attenuation bounds and mute gain");

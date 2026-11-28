@@ -17,3 +17,5 @@ typedef struct {
  * Does not modify samples; caller zero-initializes/resets the window. */
 void chime_pcm_measure(chime_pcm_levels_t *levels,const uint8_t *pcm,
     const int32_t *out,size_t frames);
+
+int32_t chime_pcm_gain_q30(int volume); /* dB*256 -> Q2.30, bounded -60..0dB */

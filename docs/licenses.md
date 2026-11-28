@@ -22,12 +22,12 @@ Chime is a downstream integrator of the LDAC implementation and reference adapte
 
 **Attribution, research-only wording, or asking users to make their own assessment does not grant permission, remove responsibility, or supply missing authorization.** LDAC and reference adapter code with unverified permissions are not relicensed under Chime's Apache-2.0 or another blanket grant. Their redistribution remains an unresolved issue.
 
-The pinned LHDC V5 decoder upstream README explicitly licenses that implementation under Apache-2.0; see the [upstream declaration](../LICENSES/LHDC-V5-NOTICE.md). This does not cover the entire reference adapter repository or grant Sony / Savitech codec patents, trademarks, or certification. Retain provenance for the two working-change files as well.
+The current seven-codec import is pinned to [ESP32-S31-A2DP-Codecs](https://github.com/WillyBilly06/ESP32-S31-A2DP-Codecs). The historical LHDC upstream declaration in [LHDC-V5-NOTICE.md](../LICENSES/LHDC-V5-NOTICE.md) does not by itself establish a covering grant for this modified S31 snapshot. Review the current manifest, individual source notices, and redistribution / patent rights separately. Helix AAC uses RealNetworks RPSL/RCSL notices, not MIT. freeaptx's LGPL source headers are not overridden by its parent directory's CC0 statement.
 
 ## Dependencies and firmware distribution
 
 - freeaptx source headers and COPYING specify **LGPL-2.1-or-later**. Distribution of statically linked firmware requires satisfying applicable corresponding-source, modification, notice, relinking, and debugging reverse-engineering obligations. Uploading source or an upstream URL alone does not prove compliance.
-- `esp_audio_codec` 2.6.2 uses **Espressif Modified MIT**, restricted to use with Espressif products. It is not standard MIT or a general-purpose open-source license. Check the package's internal third-party codec terms separately.
+- Historical dependency, removed from the current manifest/lock: `esp_audio_codec` 2.6.2 uses **Espressif Modified MIT**, restricted to use with Espressif products. It is not standard MIT or a general-purpose open-source license. Check the package's internal third-party codec terms separately.
 - ESP-IDF, mDNS, esp_tinyusb, TinyUSB, cJSON, and the USB descriptors retain their own licenses and notices. The SDK root license does not cover every dependency under one set of terms.
 - Check third-party rights in SigmaStudio / vendor-library outputs and in PCB / mechanical assets separately. Provenance hashes establish integrity, not authorization.
 

@@ -4,15 +4,26 @@ idf_component_register(
         # Single DSP owner, SS+ control, local image and read-only diagnostics.
         "bench_bridge.c" "bench_dsp.c" "chime_dsp_boot.c" "bench_dsp_status.c"
         # Shared protected PCM renderer, USB / Bluetooth codecs and manual sine.
-        "bench_audio.c" "bench_tone.c" "bench_sound.c" "chime_usb.c" "chime_pcm.c"
+        "bench_audio.c" "chime_clock_follow.c" "bench_tone.c" "bench_sound.c" "chime_usb.c" "chime_pcm.c" "chime_hid.c" "chime_render.c" "chime_mixer.c" "chime_bt_src.c"
         "chime_source.c" "chime_bluetooth.c" "chime_bt_pcm.c" "chime_bt_delay.c" "chime_bt_decoder.c"
         # Network provisioning and web control/status.
         "chime_network.c" "chime_provision.c" "chime_setup_guard.c"
         "bench_web.c" "bench_status.c"
     INCLUDE_DIRS "include"
     REQUIRES board_support freertos log esp_timer esp_system esp_app_format
-    PRIV_REQUIRES esp_driver_ledc bt chime_codec_reference chime_lhdc chime_ldac chime_freeaptx esp_audio_codec esp_tinyusb esp_driver_i2s sigma_tcp_bridge dsp_control esp_wifi esp_event esp_netif nvs_flash lwip esp_hw_support esp_rom esp_http_server mdns cjson)
+    PRIV_REQUIRES esp_driver_ledc heap bt chime_codec_reference chime_lhdc chime_ldac esp_tinyusb esp_driver_i2s sigma_tcp_bridge dsp_control esp_wifi esp_event esp_netif nvs_flash lwip esp_hw_support esp_rom esp_http_server mdns cjson esp_partition mbedtls)
+# FIR and fixed-point mix are real-time kernels even in a debug firmware build.
+set_source_files_properties(chime_bt_src.c PROPERTIES COMPILE_OPTIONS "-O3")
+set_source_files_properties(chime_mixer.c PROPERTIES COMPILE_OPTIONS "-O2")
+target_sources(${COMPONENT_LIB} PRIVATE "chime_bt_src_accel.c")
+if(CONFIG_IDF_TARGET_ESP32S31)
+    target_sources(${COMPONENT_LIB} PRIVATE "chime_bt_src_pie.S")
+endif()
 target_add_binary_data(${COMPONENT_LIB} "bench_index.html" TEXT)
+
+if(NOT CONFIG_TINYUSB_HID_COUNT EQUAL 1)
+    message(FATAL_ERROR "Chime UAC2+HID descriptors require CONFIG_TINYUSB_HID_COUNT=1")
+endif()
 
 # esp_tinyusb has no audio Kconfig knobs. Inject only our UAC class options;
 # retain its upstream tusb_config.h for target, DCD, OS and memory settings.
@@ -133,4 +144,31 @@ if(NOT CONFIG_CHIME_BT_VENDOR_CODECS)
     set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${delay_patch}"
         "${CMAKE_CURRENT_SOURCE_DIR}/../../scripts/bluetooth-sdk-pins.json"
         "${bt_dir}/host/bluedroid/btc/profile/std/a2dp/btc_av.c")
+endif()
+
+# Bench ingress is opt-in. No task, route, or ingress allocation in normal builds.
+if(CONFIG_CHIME_LDAC_REPLAY_TEST)
+    target_sources(${COMPONENT_LIB} PRIVATE "chime_ldac_replay.c")
+endif()
+
+if(CONFIG_CHIME_LDAC_REPLAY_FLASH)
+    target_sources(${COMPONENT_LIB} PRIVATE "chime_ldac_fixture.c")
+endif()
+
+# IDF v6.1 Bluedroid copies fixed-width BD_NAME_LEN fields with strncpy.
+# GCC 15 diagnoses these existing SDK sites only under -O2. Keep the warning
+# visible and narrowly nonfatal for bt; do not disable project warnings or edit
+# the installed SDK to enable a controlled performance/debug comparison.
+if(CONFIG_COMPILER_OPTIMIZATION_PERF)
+    idf_component_get_property(bt_perf_lib bt COMPONENT_LIB)
+    target_compile_options(${bt_perf_lib} PRIVATE "-Wno-error=stringop-truncation")
+endif()
+
+if(CONFIG_CHIME_LDAC_PIPELINE_TEST)
+    target_sources(${COMPONENT_LIB} PRIVATE "chime_bt_ready.c")
+    target_compile_definitions(${COMPONENT_LIB} PRIVATE CHIME_SRC_PIE_BENCHMARK=1)
+endif()
+
+if(CONFIG_CHIME_LDAC_DOT_INTERPOLATION_TEST)
+    target_compile_definitions(${COMPONENT_LIB} PRIVATE CHIME_SRC_DOT_INTERPOLATION=1)
 endif()

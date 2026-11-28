@@ -22,12 +22,12 @@
 
 **“引用”“仅研究”或“自行判断”不构成授权、不免责，也不能补足缺失许可。** LDAC 与未确认许可的参考适配代码不由本项目按 Apache-2.0 或其他统一许可重新授权；当前正式发布仍存在第三方授权待确认项。
 
-LHDC V5 decoder 上游固定提交的 README 明确声明实现采用 Apache-2.0，见 [原声明摘录](../LICENSES/LHDC-V5-NOTICE.md)。该声明不扩展到整个参考适配仓库，不等于 Sony / Savitech 等第三方 codec 专利、商标或认证许可；两份工作修改文件还需保留修改来源。
+当前七种外部 codec 统一引用 [ESP32-S31-A2DP-Codecs](https://github.com/WillyBilly06/ESP32-S31-A2DP-Codecs)。历史 [LHDC-V5-NOTICE.md](../LICENSES/LHDC-V5-NOTICE.md) 的另一版本声明，不能单独证明覆盖本次修改版 S31 快照；需按当前清单和源文件核实著作权、再分发及专利/认证链。Helix AAC 是 RealNetworks RPSL/RCSL 条款而非 MIT；freeaptx 源文件 LGPL 不因父目录 CC0 声明被覆盖。
 
 ## 依赖和固件分发
 
 - freeaptx 源文件及 COPYING 为 **LGPL-2.1-or-later**。静态固件分发需履行对应源码、修改、告知、重新链接和必要调试逆向工程等义务；上传源码或上游链接不自动证明已履行所有要求。
-- `esp_audio_codec` 2.6.2 使用 **Espressif Modified MIT**，仅限结合乐鑫产品使用，不能标为标准 MIT 或通用开源许可。依赖包内部其他 codec 条款另行核对。
+- 历史依赖（已从当前 manifest/lock 移除）：`esp_audio_codec` 2.6.2 使用 **Espressif Modified MIT**，仅限结合乐鑫产品使用，不能标为标准 MIT 或通用开源许可。依赖包内部其他 codec 条款另行核对。
 - ESP-IDF、mDNS、esp_tinyusb、TinyUSB、cJSON 及 USB 描述符保持各自许可和声明；不要用 SDK 根许可覆盖全部依赖。
 - SigmaStudio / 厂商库生成物、PCB 和机械模型中的第三方素材需单独核对。来源哈希只证明完整性，不证明授权。
 

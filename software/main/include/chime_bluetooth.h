@@ -10,6 +10,14 @@ typedef enum { CHIME_BT_STREAM_IDLE, CHIME_BT_STREAM_PREFILL, CHIME_BT_STREAM_PL
 const char *chime_bluetooth_codec_name(chime_bt_codec_t codec);
 typedef struct {
     bool available,connected,playing,output_active,primed;
+    bool pipeline_enabled;
+    bool clock_follow; /* direct LDAC48k; drift_ppm remains SOFTWARE servo only */
+    unsigned pipeline_ready_blocks,pipeline_high_water,pipeline_pending_input_frames;
+    uint32_t pipeline_produced,pipeline_consumed,pipeline_underruns;
+    unsigned pipeline_last_compute_us,pipeline_max_compute_us;
+    uint64_t pipeline_compute_total_us;
+    uint32_t pipeline_computed_blocks;
+    bool simulated; /* explicit LDAC bench session; NEVER a real BT connection */
     chime_bt_stream_state_t stream_state;
     /* Per admission; waits do not invalidate the epoch or close decoder admission. */
     uint32_t rebuffer_events,rebuffer_resumes,rebuffer_cancels,rebuffer_blocks;
@@ -51,9 +59,23 @@ uint32_t chime_bluetooth_epoch(void);
 void chime_bluetooth_snapshot(chime_bluetooth_status_t *s);
 esp_err_t chime_bluetooth_output_begin(void);
 void chime_bluetooth_output_end(void);
+esp_err_t chime_bluetooth_render_q27(int32_t *pcm,size_t frames,bool *ready);
 esp_err_t chime_bluetooth_render(uint8_t *pcm,size_t frames,bool *ready);
 int chime_bluetooth_volume(void); /* dB*256; independent of USB */
 void chime_bluetooth_fail(esp_err_t error);
 esp_err_t chime_bluetooth_adjust_volume(int steps); /* AVRCP units, current phone value */
 void chime_bluetooth_delay_poll(void); /* low-priority owner; no audio-path API calls */
 void chime_bluetooth_volume_notify(void); /* input task; coalesced AVRCP CHANGED */
+
+#if CONFIG_CHIME_LDAC_REPLAY_TEST
+/* Test transport only. No gain increase, AVRCP/connected/playing spoofing, or
+ * owner bypass. Epoch is the cancellation token; submit consumes ownership. */
+esp_err_t chime_bluetooth_replay_begin(unsigned rate, uint32_t *epoch);
+void chime_bluetooth_replay_end(uint32_t epoch, esp_err_t error);
+bool chime_bluetooth_replay_submit(void *buffer, uint32_t epoch);
+#endif
+
+#if CONFIG_CHIME_LDAC_APLL_FOLLOW
+/* Render owner only; eligibility rechecked under BT lock at admission. */
+esp_err_t chime_bluetooth_output_begin_clocked(bool follow);
+#endif

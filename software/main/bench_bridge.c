@@ -5,6 +5,7 @@
 #include "chime_indicator.h"
 #include "chime_controls.h"
 #include "chime_stream.h"
+#include "chime_render.h"
 #include "chime_bluetooth.h"
 #include "sdkconfig.h"
 #if CONFIG_BT_A2DP_USE_EXTERNAL_CODEC
@@ -43,7 +44,7 @@ typedef struct {
     uint64_t request_deadline;
     uint32_t commands;
     bool usb_mode; /* legacy name: shared continuous PCM mode */
-    bool bluetooth_mode;
+    bool mixed_mode;
     bool controls_cancelled; /* expected physical cancellation, not a guard fault */
     uint32_t stream_epoch;
     bool external;
@@ -115,15 +116,13 @@ static void revoke_tuning(bench_session_t *s,int reason)
 static bool stream_wanted(const bench_session_t *s)
 {
     if(!s->usb_mode)return true;
-    if(!s->external&&s->bluetooth_mode!=chime_bluetooth_connected())return false;
-    return s->bluetooth_mode?
-        chime_bluetooth_wanted()&&s->stream_epoch==chime_bluetooth_epoch():
-        chime_usb_wanted()&&s->stream_epoch==chime_usb_epoch();
+    if(!s->external)return chime_usb_wanted()||chime_bluetooth_wanted();
+    return chime_usb_wanted()&&s->stream_epoch==chime_usb_epoch();
 }
 static bool sound_cancelled(void *context)
 {
     bench_session_t *s=context;
-    if(chime_controls_blocked()){s->controls_cancelled=true;return true;}
+    if(chime_controls_standby()||(!s->usb_mode&&chime_controls_muted())){s->controls_cancelled=true;return true;}
     if(bench_web_sound_stop_pending()||bench_web_tuning_queued())return true;
     if(bench_web_output_change_pending()){
         if(s->usb_mode&&stream_wanted(s))s->output_interrupted_usb=true;
@@ -242,6 +241,19 @@ static void sound_monitor_log(const bench_sound_t *sound)
             (unsigned)(mute&1U),(unsigned)((mute>>1)&1U));
     }
 }
+static void mix_monitor_log(void)
+{
+    chime_render_stats_t rs;chime_render_snapshot(&rs);
+    ESP_LOGI(TAG,"MIX FLOW blocks=%lu usb_short=%lu bt_short=%lu clips=%lu peak_q27=%lu compute_us=%lu/%lu src_us=%lu/%lu write_us=%lu/%lu period_us=%lu/%lu deadline_misses=%lu unpaced_yields=%lu; times=last/max, wall times include preemption; unity sum, NO power limiter",
+        (unsigned long)rs.blocks,(unsigned long)rs.usb_short,(unsigned long)rs.bt_short,
+        (unsigned long)rs.clips,(unsigned long)rs.peak,
+        (unsigned long)rs.last_compute_us,(unsigned long)rs.max_compute_us,
+        (unsigned long)rs.last_src_us,(unsigned long)rs.max_src_us,
+        (unsigned long)rs.last_write_us,(unsigned long)rs.max_write_us,
+        (unsigned long)rs.last_period_us,(unsigned long)rs.max_period_us,
+        (unsigned long)rs.deadline_misses,(unsigned long)rs.unpaced_yields);
+}
+
 static int execute(void *context,const sigma_request_t *request,uint8_t *read_data)
 {
     bench_session_t *s=context;
@@ -348,13 +360,13 @@ static void indicator_publish(bool *fault,bool default_ready,const bench_sound_t
     else if(sound->attempted&&sound->result!=ESP_OK&&
         (sound->failed_reg!=0||!source->stopped))*fault=true;
     chime_indicator_publish((chime_indicator_state_t){.fault=*fault,
-        .bluetooth=!session->external&&source->selected==CHIME_SOURCE_BLUETOOTH,
+        .bluetooth=!session->external&&chime_bluetooth_connected(),
         .stopped=source->stopped&&!sound->active});
 }
 static void source_callbacks(bench_sound_t *sound,chime_source_id_t source)
 {
-    sound->io.tone_begin=source==CHIME_SOURCE_BLUETOOTH?chime_stream_bt_begin:source==CHIME_SOURCE_USB?chime_usb_output_begin:bench_audio_tone_begin;
-    sound->io.tone_pump=source==CHIME_SOURCE_BLUETOOTH?chime_stream_bt_poll:source==CHIME_SOURCE_USB?chime_usb_output_poll:bench_audio_tone_pump;
+    sound->io.tone_begin=source==CHIME_SOURCE_MIX?chime_stream_mix_begin:source==CHIME_SOURCE_USB?chime_usb_output_begin:bench_audio_tone_begin;
+    sound->io.tone_pump=source==CHIME_SOURCE_MIX?chime_stream_mix_poll:source==CHIME_SOURCE_USB?chime_usb_output_poll:bench_audio_tone_pump;
     sound->io.tone_end=source==CHIME_SOURCE_NONE?bench_audio_tone_end:chime_stream_end;
 }
 esp_err_t bench_bridge_run(board_context_t *board)
@@ -404,7 +416,7 @@ esp_err_t bench_bridge_run(board_context_t *board)
     sigma_bridge_t bridge={0};
     while(true) {
         chime_bluetooth_delay_poll(); /* low-priority control plane, never PCM worker */
-        bool blocked=chime_controls_blocked();
+        bool blocked=chime_controls_standby();
         if(blocked!=controls_blocked){
             controls_blocked=blocked;
             if(blocked){
@@ -413,13 +425,14 @@ esp_err_t bench_bridge_run(board_context_t *board)
             }else chime_source_retry(&source); /* never clears Web STOP or SS ownership */
         }
         chime_source_update(&source,chime_bluetooth_connected(),chime_usb_epoch(),chime_bluetooth_epoch());
-        /* Retire old source BEFORE admitting its replacement. USB events do
-         * not cancel BT; external SS audition deliberately remains USB-only. */
+        /* Local mix lives while either input is wanted. External SS audition
+         * deliberately remains USB-only and epoch-bound. */
         if(sound.active&&sound.continuous&&!stream_wanted(&session)){
             ESP_LOGI(TAG,"SOURCE SWITCH from=%s selected=%s; stopping old PCM before admission",
-                session.bluetooth_mode?"bluetooth":"usb",chime_source_name(source.selected));
+                session.mixed_mode?"mix":"usb",chime_source_name(source.selected));
             bench_sound_stop(&sound,ESP_OK);sound_publish(&sound);
-            if(session.bluetooth_mode)bluetooth_monitor_log(); /* Never delay the stop for diagnostics. */
+            if(session.mixed_mode)bluetooth_monitor_log(); /* Never delay the stop for diagnostics. */
+            mix_monitor_log();
             ESP_LOGI(TAG,"SOURCE QUIESCED selected=%s; old PCM stopped",chime_source_name(source.selected));
         }
         if(client>=0 && (cancelled(&session) || !sigma_bridge_poll(&bridge))) goto close_client;
@@ -495,15 +508,15 @@ esp_err_t bench_bridge_run(board_context_t *board)
                 sound.phase?sound.phase:"idle",(unsigned long)sound.hiz_clocks,(unsigned long)sound.play_clocks,(unsigned)sound.power_state);
             sound_publish(&sound);
         }
-        bool wanted=source.selected==CHIME_SOURCE_BLUETOOTH?chime_bluetooth_wanted():chime_usb_wanted();
+        bool wanted=chime_bluetooth_wanted()||chime_usb_wanted();
         bool local_start=!session.external&&chime_source_admit(&source,
-            !chime_controls_blocked()&&client<0&&default_ready&&!sound.active&&bridge.decoder.used==0&&!bench_web_sound_stop_pending(),wanted);
-        bool external_start=!chime_controls_blocked()&&session.external&&session.tuning_armed&&!sound.active&&chime_usb_wanted()&&usb_attempt_epoch!=chime_usb_epoch();
+            !chime_controls_standby()&&client<0&&default_ready&&!sound.active&&bridge.decoder.used==0&&!bench_web_sound_stop_pending(),wanted);
+        bool external_start=!chime_controls_standby()&&session.external&&session.tuning_armed&&!sound.active&&chime_usb_wanted()&&usb_attempt_epoch!=chime_usb_epoch();
         if(local_start||external_start){
             chime_source_id_t selected=external_start?CHIME_SOURCE_USB:source.selected;
             usb_attempt_epoch=chime_usb_epoch();
-            session.usb_mode=true;session.bluetooth_mode=selected==CHIME_SOURCE_BLUETOOTH;
-            session.stream_epoch=session.bluetooth_mode?chime_bluetooth_epoch():chime_usb_epoch();
+            session.usb_mode=true;session.mixed_mode=selected==CHIME_SOURCE_MIX;
+            session.stream_epoch=session.mixed_mode?chime_bluetooth_epoch():chime_usb_epoch();
             source_callbacks(&sound,selected);
             /* Old worker is quiesced by cancel/end; amps are OFF. Never let
              * stale DMA from the old source survive a new admission. */
@@ -520,9 +533,10 @@ esp_err_t bench_bridge_run(board_context_t *board)
         }
         if(sound.active&&sound.continuous&&!stream_wanted(&session)){
             ESP_LOGI(TAG,"SOURCE SWITCH from=%s selected=%s; stopping old PCM before admission",
-                session.bluetooth_mode?"bluetooth":"usb",chime_source_name(source.selected));
+                session.mixed_mode?"mix":"usb",chime_source_name(source.selected));
             bench_sound_stop(&sound,ESP_OK);sound_publish(&sound);
-            if(session.bluetooth_mode)bluetooth_monitor_log(); /* Never delay the stop for diagnostics. */
+            if(session.mixed_mode)bluetooth_monitor_log(); /* Never delay the stop for diagnostics. */
+            mix_monitor_log();
             ESP_LOGI(TAG,"SOURCE QUIESCED selected=%s; old PCM stopped",chime_source_name(source.selected));
         }
         bool was_active=sound.active;
@@ -531,10 +545,13 @@ esp_err_t bench_bridge_run(board_context_t *board)
         if(session.controls_cancelled)bench_sound_stop(&sound,ESP_OK);
         if(sound.active){
             uint64_t monitor_now=now_us(NULL);
-            if(monitor_now>=audio_monitor_at){sound_monitor_log(&sound);if(session.bluetooth_mode)bluetooth_monitor_log();audio_monitor_at=monitor_now+1000000ULL;}
+            if(monitor_now>=audio_monitor_at){sound_monitor_log(&sound);if(session.mixed_mode)bluetooth_monitor_log();
+                mix_monitor_log();
+                audio_monitor_at=monitor_now+1000000ULL;}
         }else audio_monitor_at=0;
         if(was_active&&!sound.active) {
-            if(session.bluetooth_mode)bluetooth_monitor_log();
+            if(session.mixed_mode)bluetooth_monitor_log();
+            mix_monitor_log();
             if(session.external&&sound.result!=ESP_OK)revoke_tuning(&session,sound.result);
             ESP_LOGW(TAG,"AUDIO STOP result=%d reg=%04x raw=%08lx; amps OFF; listening result NOT_VERIFIED",sound.result,sound.failed_reg,(unsigned long)sound.observed);
             sound_publish(&sound);
@@ -555,7 +572,7 @@ esp_err_t bench_bridge_run(board_context_t *board)
         if(!sound.active)board_support_set_amp_power(false,false);
         chime_bluetooth_status_t bt;chime_bluetooth_snapshot(&bt);
         bench_web_source_publish((unsigned)source.selected,
-            sound.active&&sound.continuous?(session.bluetooth_mode?2U:1U):0U,source.stopped,&bt);
+            sound.active&&sound.continuous?(session.external?1U:3U):0U,source.stopped,&bt);
         indicator_publish(&led_fault,default_ready,&sound,&session,&source);
         fd_set readfds;FD_ZERO(&readfds);FD_SET(listener,&readfds);
         int maxfd=listener;

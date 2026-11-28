@@ -56,6 +56,15 @@ void chime_bt_pcm_rebuffer(chime_bt_pcm_t *q,uint64_t now_us)
     q->clock_seen=true;q->decay_at_us=now_us+CHIME_BT_TARGET_HOLD_US;
     q->arrival_seen=false;q->last_arrival_us=0;
 }
+#if CONFIG_CHIME_LDAC_PIPELINE_TEST
+void chime_bt_pcm_attach_tail(chime_bt_pcm_t *q,int16_t tail[6144][2]){q->pcm_tail=tail;}
+static int16_t *pcm_at(chime_bt_pcm_t *q,size_t index)
+{
+    return index<2048?q->pcm[index]:q->pcm_tail[index-2048];
+}
+#else
+static int16_t *pcm_at(chime_bt_pcm_t *q,size_t index){return q->pcm[index];}
+#endif
 static int16_t read16(const uint8_t *p)
 {
     int32_t v=(int32_t)((uint32_t)p[0]|((uint32_t)p[1]<<8));
@@ -69,65 +78,88 @@ bool chime_bt_pcm_push(chime_bt_pcm_t *q,const uint8_t *data,size_t bytes,bool l
     if(frames>CHIME_BT_QUEUE_FRAMES-q->count){
         if(!latest||frames>CHIME_BT_QUEUE_FRAMES)return false;
         size_t drop=frames-(CHIME_BT_QUEUE_FRAMES-q->count);
-        q->head=(q->head+drop)%CHIME_BT_QUEUE_FRAMES;q->count-=drop;q->phase=0;
+        q->head=(q->head+drop)%CHIME_BT_QUEUE_FRAMES;q->count-=drop;q->discarded_frames+=drop;q->phase=0;
     }
     for(size_t i=0;i<frames;++i){
         size_t index=(q->head+q->count)%CHIME_BT_QUEUE_FRAMES;
-        q->pcm[index][0]=read16(data+i*q->channels*2U);
-        q->pcm[index][1]=q->channels==2?read16(data+i*4U+2U):q->pcm[index][0];
+        int16_t *dest=pcm_at(q,index);dest[0]=read16(data+i*q->channels*2U);
+        dest[1]=q->channels==2?read16(data+i*4U+2U):dest[0];
         ++q->count;
     }
     q->pushed_frames+=frames;
     return true;
 }
-bool chime_bt_pcm_render(chime_bt_pcm_t *q,uint8_t *stereo,size_t frames,uint64_t now_us)
+void chime_bt_pcm_control(chime_bt_pcm_t *q,unsigned queued_frames)
 {
-    if(!stereo||!frames||frames>128||!q->rate||!q->channels)return false;
-    memset(stereo,0,frames*4U);
+    int32_t error=(int32_t)queued_frames-(int32_t)q->target_frames;
+    q->filtered_error+=(error*256-q->filtered_error)/256;
+    int32_t target=q->filtered_error/128;
+    if(target>2000)target=2000;
+    if(target< -2000)target= -2000;
+    /* <= 1 ppm/block (~375 ppm/s); packet bursts cannot abruptly bend pitch. */
+    if(q->ppm<target)++q->ppm;else if(q->ppm>target)--q->ppm;
+    if(q->ppm==2000||q->ppm== -2000)++q->clamp_blocks;
+}
+bool chime_bt_pcm_prepare_clocked(chime_bt_pcm_t *q,chime_bt_src_job_t *job,size_t frames,uint64_t now_us,bool update_clock)
+{
+    if(!job||!frames||frames>128||!q->rate||!q->channels)return false;
     timing_start(q,now_us);
-    if(q->primed&&now_us>=q->decay_at_us){
-        set_target(q,q->target_ms-1U);q->decay_at_us=now_us+CHIME_BT_TARGET_DECAY_US;
-    }
+    if(q->primed&&now_us>=q->decay_at_us){set_target(q,q->target_ms-1U);q->decay_at_us=now_us+CHIME_BT_TARGET_DECAY_US;}
     if(!q->primed&&q->count<q->target_frames)return false;
     if(q->count<q->render_min)q->render_min=(unsigned)q->count;
     if(q->count>q->render_max)q->render_max=(unsigned)q->count;
-    /* Low-pass occupancy feedback; bounded +/-2000ppm corrects remote clock
-     * drift without dropping/repeating arbitrary frames. Adaptive input-time target.
-     * Input bursts are filtered over ~0.7s, not tracked sample-by-sample. */
-    int32_t error=(int32_t)q->count-(int32_t)q->target_frames;
-    q->filtered_error+=(error*256-q->filtered_error)/256;
-    q->ppm=q->filtered_error/128;
-    if(q->ppm>2000)q->ppm=2000;
-    if(q->ppm< -2000)q->ppm= -2000;
-    if(q->ppm==2000||q->ppm==-2000)++q->clamp_blocks;
-    uint32_t base=(uint32_t)((uint64_t)q->rate*65536U/48000U);
-    uint32_t step=(uint32_t)((int64_t)base*(1000000+q->ppm)/1000000);
-    uint32_t end=q->phase+(uint32_t)frames*step;
-    /* Preserve state on short input. Last interpolation requires the next
-     * sample; also leave enough data for the integer phase consumption. */
-    size_t needed=(size_t)((q->phase+(uint32_t)(frames-1)*step)>>16)+2;
-    if(needed<=(size_t)(end>>16))needed=(size_t)(end>>16)+1;
+    if(update_clock)chime_bt_pcm_control(q,(unsigned)q->count);
+    uint64_t base=((uint64_t)q->rate<<32)/48000U;
+    uint64_t step=base*(uint64_t)(1000000+q->ppm)/1000000U;
+    uint64_t end=q->phase+frames*step;
+    size_t needed=(size_t)((q->phase+(frames-1)*step)>>32)+CHIME_SRC_HISTORY;
     q->needed=(unsigned)needed;
-    if(q->count<needed){
-        if(!q->short_input){
-            set_target(q,q->target_ms+8U);q->decay_at_us=now_us+CHIME_BT_TARGET_HOLD_US;
-        }
+    if(needed>CHIME_SRC_WINDOW||q->count<needed){
+        if(!q->short_input){set_target(q,q->target_ms+8U);q->decay_at_us=now_us+CHIME_BT_TARGET_HOLD_US;}
         q->short_input=true;return false;
     }
-    q->short_input=false;
-    q->primed=true;
+    q->short_input=false;q->primed=true;
+    job->phase=q->phase;job->step=step;job->rate=q->rate;
+    for(size_t i=0;i<needed;++i){size_t at=(q->head+i)%CHIME_BT_QUEUE_FRAMES;int16_t *src=pcm_at(q,at);job->pcm[i][0]=src[0];job->pcm[i][1]=src[1];}
+    size_t consumed=(size_t)(end>>32);q->head=(q->head+consumed)%CHIME_BT_QUEUE_FRAMES;
+    q->consumed_frames+=consumed;q->rendered_frames+=frames;q->count-=consumed;q->phase=(uint32_t)end;
+    return true;
+}
+bool chime_bt_pcm_prepare(chime_bt_pcm_t *q,chime_bt_src_job_t *job,size_t frames,uint64_t now_us)
+{
+    return chime_bt_pcm_prepare_clocked(q,job,frames,now_us,true);
+}
+bool chime_bt_pcm_render(chime_bt_pcm_t *q,uint8_t *stereo,size_t frames,uint64_t now_us)
+{
+    if(!stereo||!frames||frames>128)return false;
+    memset(stereo,0,frames*4U);chime_bt_src_job_t job;
+    if(!chime_bt_pcm_prepare(q,&job,frames,now_us))return false;
+    int32_t out[256];chime_bt_src_process(&job,out,frames);
+    for(size_t i=0;i<frames*2;++i){int32_t v=(out[i]+(out[i]<0?-2048:2048))/4096;
+    if(v>32767)v=32767;
+    if(v< -32768)v= -32768;
+        uint16_t u=(uint16_t)(int16_t)v;stereo[2*i]=(uint8_t)u;stereo[2*i+1]=(uint8_t)(u>>8);}
+    return true;
+}
+
+bool chime_bt_pcm_direct_q27(chime_bt_pcm_t *q,int32_t *pcm,size_t frames,uint64_t now_us)
+{
+    if(!pcm||!frames||frames>128)return false;
+    memset(pcm,0,frames*2U*sizeof(*pcm));
+    if(q->rate!=48000||q->channels!=2)return false;
+    timing_start(q,now_us);
+    /* Hold the target within this admission. Moving a jitter-buffer target
+     * during playback cannot be corrected quickly by a +/-300ppm clock. */
+    if(!q->primed&&q->count<q->target_frames)return false;
+    if(q->count<q->render_min)q->render_min=(unsigned)q->count;
+    if(q->count>q->render_max)q->render_max=(unsigned)q->count;
+    q->needed=(unsigned)frames;q->ppm=0;q->filtered_error=0;
+    if(q->count<frames){q->short_input=true;return false;}
     for(size_t i=0;i<frames;++i){
-        size_t a=(q->head+(q->phase>>16))%CHIME_BT_QUEUE_FRAMES;
-        size_t b=(a+1)%CHIME_BT_QUEUE_FRAMES;
-        uint32_t fraction=q->phase&65535U;
-        for(unsigned ch=0;ch<2;++ch){
-            int32_t v=q->pcm[a][ch]+(int32_t)((int64_t)(q->pcm[b][ch]-q->pcm[a][ch])*fraction/65536);
-            uint16_t u=(uint16_t)(int16_t)v;
-            stereo[i*4U+ch*2U]=(uint8_t)u;stereo[i*4U+ch*2U+1U]=(uint8_t)(u>>8);
-        }
-        q->phase+=step;
+        int16_t *src=pcm_at(q,(q->head+i)%CHIME_BT_QUEUE_FRAMES);
+        pcm[2*i]=(int32_t)src[0]*4096;pcm[2*i+1]=(int32_t)src[1]*4096;
     }
-    size_t consumed=q->phase>>16;q->head=(q->head+consumed)%CHIME_BT_QUEUE_FRAMES;
-    q->consumed_frames+=consumed;q->rendered_frames+=frames;
-    q->count-=consumed;q->phase&=65535U;return true;
+    q->head=(q->head+frames)%CHIME_BT_QUEUE_FRAMES;q->count-=frames;
+    q->consumed_frames+=frames;q->rendered_frames+=frames;
+    q->phase=0;q->primed=true;q->short_input=false;return true;
 }

@@ -4,13 +4,16 @@
 #include <assert.h>
 #include <stdio.h>
 typedef struct {bool external;} bench_session_t;
+static bool connected=true;
+static bool chime_bluetooth_connected(void){return connected;}
 static chime_indicator_state_t published;
 void chime_indicator_publish(chime_indicator_state_t s){published=s;}
 #include "led_owner.inc"
 int main(void){
     bool fault=false;bench_sound_t sound={0};bench_session_t session={0};
-    chime_source_t source={.selected=CHIME_SOURCE_BLUETOOTH};
+    chime_source_t source={.selected=CHIME_SOURCE_MIX};
     indicator_publish(&fault,true,&sound,&session,&source);assert(!fault&&published.bluetooth&&!published.stopped&&!published.starting);
+    connected=false;indicator_publish(&fault,true,&sound,&session,&source);assert(!published.bluetooth);connected=true;
     source.stopped=true;indicator_publish(&fault,true,&sound,&session,&source);assert(published.stopped&&!fault);
     sound.attempted=true;sound.result=ESP_ERR_INVALID_STATE;indicator_publish(&fault,true,&sound,&session,&source);assert(!fault); /* deliberate cancel */
     sound.failed_reg=0x70;indicator_publish(&fault,true,&sound,&session,&source);assert(fault&&published.fault);

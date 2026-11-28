@@ -15,6 +15,8 @@ static unsigned stops,writes,records,publishes,invalidations;
 static int last_record,executor_result,peek_result=-1;
 static bool bt_connected,bt_wanted,controls_blocked;
 static bool chime_controls_blocked(void){return controls_blocked;}
+bool chime_controls_standby(void){return chime_controls_blocked();}
+bool chime_controls_muted(void){return false;}
 static uint32_t bt_epoch,usb_epoch;
 static bool amps,stop_pending,tuning_queued,output_pending,usb_wanted=true,network_ready=true;
 static uint32_t network_epoch=1;
@@ -71,15 +73,15 @@ int main(void){
     session.request_deadline=clock_now;assert(sound_cancelled(&session));session.request_deadline=0;
     session.socket=-1;assert(ss_idle(&session)&&!sound_cancelled(&session));
     output_pending=true;assert(sound_cancelled(&session)&&session.output_interrupted_usb);output_pending=false;
-    output_pending=false;session.external=false;session.bluetooth_mode=true;
+    output_pending=false;session.external=false;session.mixed_mode=true;
     bt_connected=bt_wanted=true;usb_wanted=false;session.stream_epoch=bt_epoch;
     assert(!sound_cancelled(&session)); /* USB events cannot stop BT */
     ++usb_epoch;assert(!sound_cancelled(&session));
-    ++bt_epoch;assert(sound_cancelled(&session));session.stream_epoch=bt_epoch;
+    ++bt_epoch;assert(!sound_cancelled(&session));session.stream_epoch=bt_epoch;
     bt_wanted=false;assert(sound_cancelled(&session));bt_wanted=true;
-    bt_connected=false;assert(sound_cancelled(&session));bt_connected=true;
-    session.bluetooth_mode=false;usb_wanted=true;session.stream_epoch=usb_epoch;
-    assert(sound_cancelled(&session)); /* connection cancels normal USB */
+    bt_connected=false;assert(!sound_cancelled(&session));bt_connected=true;
+    session.mixed_mode=false;usb_wanted=true;session.stream_epoch=usb_epoch;
+    assert(!sound_cancelled(&session)); /* BT connection never cancels mixed USB */
     session.external=true;assert(!sound_cancelled(&session)); /* explicit SS USB exception */
     revoke_tuning(&session,0);assert(session.tuning_armed==0&&!amps&&!sound.active);
     puts("PASS actual owner callbacks: writes stop amps/revoke before executor, errors and unknown Safeload fail silent; reads preserve audition; STOP/USB/network/queued command cancellation and idle checks");

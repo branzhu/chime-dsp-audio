@@ -189,4 +189,6 @@ assert.match(elements.get('source-state').textContent,/SBC 48000 Hz/);
 assert.equal(elements.get('source-resume').disabled,false);
 await elements.get('source-resume').click();assert.equal(soundPosted,JSON.stringify('resume'));
 await elements.get('source-stop').click();assert.equal(soundPosted,'0');
-console.log('PASS Bluetooth selected/rendering distinction and manual resume/STOP controls');
+status.selected_source='mix';status.rendering_source='mix';status.bt_available=true;status.bt_connected=true;status.bt_playing=true;status.bt_stream_state=2;
+await elements.get('refresh').click();assert.match(elements.get('source-state').textContent,/选中 USB \+ 蓝牙.*输出 USB \+ 蓝牙.*连接\/播放/);
+console.log('PASS mixed source rendering, Bluetooth distinction and manual resume/STOP controls');

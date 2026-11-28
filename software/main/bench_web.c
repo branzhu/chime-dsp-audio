@@ -1,7 +1,30 @@
+#include "sdkconfig.h"
 #include "bench_web.h"
 #include "bench_status.h"
 #include "bench_tone.h"
 #include "chime_network.h"
+#include "chime_usb.h"
+#include "chime_render.h"
+#if CONFIG_BT_A2DP_USE_EXTERNAL_CODEC
+#include "chime_bt_decoder.h"
+#endif
+#if CONFIG_CHIME_LDAC_PIPELINE_TEST
+#include "chime_bt_src.h"
+#endif
+#if CONFIG_CHIME_LDAC_REPLAY_TEST
+#include "chime_ldac_replay.h"
+#include "chime_ldac_replay_format.h"
+#include <stdlib.h>
+#endif
+#include "esp_app_desc.h"
+#include "esp_timer.h"
+#include "esp_private/esp_clk.h"
+#include "esp_heap_caps.h"
+#if CONFIG_FREERTOS_GENERATE_RUN_TIME_STATS
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+#endif
+#include "esp_random.h"
 #include <stdatomic.h>
 #include "bench_output.h"
 #include <stdio.h>
@@ -17,6 +40,7 @@ static const char *TAG="chime_web";
 static httpd_handle_t server;
 static bool mdns_started;
 static uint16_t bridge_port;
+static char audio_boot_id[17];
 static atomic_bool client_connected,default_ready;
 static atomic_bool dsp_external;
 static atomic_int tuning_request,tuning_result;
@@ -124,6 +148,182 @@ bool bench_web_take_dsp_request(void)
 {
     int expected=1;return atomic_compare_exchange_strong(&dsp_request,&expected,2);
 }
+/* Read-only software counters, sampled sequentially; no DSP/I2C/PCM control.
+ * Existing /api/status remains wire-compatible. Intended polling <=1 Hz.
+ * Snapshot span and validity flags expose, rather than hide, contention. */
+#if CONFIG_FREERTOS_GENERATE_RUN_TIME_STATS
+/* Known persistent tasks only: no uxTaskGetSystemState/stack scanning, which
+ * would suspend scheduling while traversing every task stack. No task state or
+ * watermark queries. Allocation/JSON happens outside all scheduler locks.
+ * Run counters exclude other tasks, but can include ISR time attributed by
+ * FreeRTOS; deltas are task-allocation evidence, not pure DSP instruction time. */
+static cJSON *scheduler_json(void)
+{
+    static const char *names[]={"source_pcm","bt_decode","TinyUSB","ldac_replay",
+        "IDLE0","IDLE1","wifi","tcpip_task","BTU_TASK","BTC_TASK","btdm",
+        "httpd","esp_timer","main"};
+    uint64_t begin=(uint64_t)esp_timer_get_time();
+    cJSON *o=cJSON_CreateObject();if(!o)return NULL;
+    cJSON *tasks=cJSON_AddArrayToObject(o,"tasks");if(!tasks)goto failed;
+    for(unsigned i=0;i<sizeof(names)/sizeof(names[0]);++i){
+        TaskHandle_t handle=xTaskGetHandle(names[i]);if(!handle)continue;
+        TaskStatus_t task;vTaskGetInfo(handle,&task,pdFALSE,eReady);
+        cJSON *entry=cJSON_CreateObject();if(!entry)goto failed;
+        if(!cJSON_AddItemToArray(tasks,entry)){cJSON_Delete(entry);goto failed;}
+        if(!cJSON_AddStringToObject(entry,"name",names[i])||
+           !cJSON_AddNumberToObject(entry,"runtime_us",(double)task.ulRunTimeCounter)||
+           !cJSON_AddNumberToObject(entry,"priority",task.uxCurrentPriority))goto failed;
+#if configTASKLIST_INCLUDE_COREID
+        if(!cJSON_AddNumberToObject(entry,"affinity",task.xCoreID))goto failed;
+#endif
+    }
+    uint64_t end=(uint64_t)esp_timer_get_time();
+    if(!cJSON_AddBoolToObject(o,"enabled",true)||!cJSON_AddNumberToObject(o,"sampled_us",end)||
+       !cJSON_AddNumberToObject(o,"capture_span_us",end-begin)||
+       !cJSON_AddNumberToObject(o,"counter_bits",32)||
+       !cJSON_AddStringToObject(o,"metric","FreeRTOS task allocated us; may include ISR time"))goto failed;
+    return o;
+failed:
+    cJSON_Delete(o);return NULL;
+}
+#endif
+static esp_err_t audio_get(httpd_req_t *req)
+{
+    uint64_t begin=(uint64_t)esp_timer_get_time();
+    bench_status_t source;if(snapshot(&source)!=ESP_OK)
+        return error_response(req,"503 Service Unavailable","{\"error\":\"source_unavailable\"}");
+    chime_usb_stats_t usb;chime_usb_snapshot(&usb);
+    chime_bluetooth_status_t bt;chime_bluetooth_snapshot(&bt);
+    chime_render_stats_t render;chime_render_snapshot(&render);
+#if CONFIG_BT_A2DP_USE_EXTERNAL_CODEC
+    chime_bt_decoder_stats_t decoder={0};bool decoder_valid=chime_bt_decoder_snapshot(&decoder);
+#else
+    const bool decoder_valid=false; /* SDK SBC has no external decoder worker. */
+#endif
+    uint64_t end=(uint64_t)esp_timer_get_time();
+    const esp_app_desc_t *app=esp_app_get_description();char sha[65];
+    for(unsigned i=0;i<32;++i)snprintf(sha+2*i,3,"%02x",app->app_elf_sha256[i]);
+    cJSON *root=cJSON_CreateObject();if(!root)return send_json(req,NULL);
+    cJSON *firmware=NULL,*state=NULL,*u=NULL,*b=NULL,*r=NULL,*d=NULL;
+#define OBJ(parent,key,target) do {target=cJSON_AddObjectToObject(parent,key);if(!target)goto oom;} while(0)
+#define NUM(obj,key,value) do {if(!cJSON_AddNumberToObject(obj,key,(double)(value)))goto oom;} while(0)
+#define BOOL(obj,key,value) do {if(!cJSON_AddBoolToObject(obj,key,value))goto oom;} while(0)
+#define STR(obj,key,value) do {if(!cJSON_AddStringToObject(obj,key,value))goto oom;} while(0)
+    NUM(root,"schema",1);STR(root,"boot_id",audio_boot_id);
+    NUM(root,"sampled_us",end);NUM(root,"snapshot_span_us",end-begin);
+    STR(root,"timing_kind","wall_time_including_preemption");BOOL(root,"audio_verified",false);
+    OBJ(root,"firmware",firmware);STR(firmware,"elf_sha256",sha);
+    STR(firmware,"version",app->version);STR(firmware,"idf",app->idf_ver);
+    NUM(firmware,"cpu_hz",esp_clk_cpu_freq());
+    NUM(firmware,"free_internal_bytes",heap_caps_get_free_size(MALLOC_CAP_INTERNAL|MALLOC_CAP_8BIT));
+    NUM(firmware,"free_dma_internal_bytes",heap_caps_get_free_size(MALLOC_CAP_INTERNAL|MALLOC_CAP_DMA|MALLOC_CAP_8BIT));
+    NUM(firmware,"min_dma_internal_bytes",heap_caps_get_minimum_free_size(MALLOC_CAP_INTERNAL|MALLOC_CAP_DMA|MALLOC_CAP_8BIT));
+    NUM(firmware,"free_rtc_bytes",heap_caps_get_free_size(MALLOC_CAP_RTCRAM|MALLOC_CAP_8BIT));
+    /* Largest-block traversal only when output is idle, never in playback. */
+    static size_t idle_largest;static uint64_t idle_heap_us;
+    if(!source.amplifiers_enabled&&!usb.streaming&&!bt.output_active){
+        idle_largest=heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL|MALLOC_CAP_8BIT);idle_heap_us=end;
+    }
+    NUM(firmware,"idle_largest_internal_bytes",idle_largest);NUM(firmware,"idle_heap_sampled_us",idle_heap_us);
+#if CONFIG_COMPILER_OPTIMIZATION_PERF
+    STR(firmware,"optimization","performance");
+#elif CONFIG_COMPILER_OPTIMIZATION_DEBUG
+    STR(firmware,"optimization","debug");
+#else
+    STR(firmware,"optimization","other");
+#endif
+#if CONFIG_FREERTOS_GENERATE_RUN_TIME_STATS
+    cJSON *scheduler=scheduler_json();if(!scheduler)goto oom;
+    if(!cJSON_AddItemToObject(root,"scheduler",scheduler)){cJSON_Delete(scheduler);goto oom;}
+#endif
+    OBJ(root,"source",state);NUM(state,"selected",source.selected_source);NUM(state,"rendering",source.rendering_source);
+    BOOL(state,"stopped",source.source_stopped);BOOL(state,"amps_enabled",source.amplifiers_enabled);
+    BOOL(state,"dsp_ready",source.dsp_default_ready);NUM(state,"sound_error",source.sound_result);
+    OBJ(root,"usb",u);
+#define UN(name) NUM(u,#name,usb.name)
+#define UB(name) BOOL(u,#name,usb.name)
+    UN(epoch);UN(rx_packets);UN(rx_bytes);UN(rx_zlp);UN(error);NUM(u,"volume",chime_usb_volume());
+    UB(installed);UB(streaming);UB(suspended);UB(muted);UB(wanted);UB(coherent);
+    OBJ(root,"bt",b);
+#define BN(name) NUM(b,#name,bt.name)
+#define BB(name) BOOL(b,#name,bt.name)
+    BN(epoch);BN(output_id);BN(codec);BN(rate);BN(channels);BN(volume);BN(error);BN(stream_state);
+    BB(clock_follow);BB(pipeline_enabled);BN(pipeline_ready_blocks);BN(pipeline_high_water);
+    BN(pipeline_produced);BN(pipeline_consumed);BN(pipeline_underruns);BN(pipeline_pending_input_frames);
+    BN(pipeline_last_compute_us);BN(pipeline_max_compute_us);
+    BN(pipeline_compute_total_us);BN(pipeline_computed_blocks);
+#if CONFIG_CHIME_LDAC_PIPELINE_TEST
+    chime_bt_src_accel_stats_t as;chime_bt_src_accel_snapshot(&as);
+    cJSON *accel=cJSON_AddObjectToObject(root,"src_accel");if(!accel)goto oom;
+    BOOL(accel,"complete",as.complete);BOOL(accel,"enabled",as.enabled);
+    NUM(accel,"validated_cases",as.exact_cases);NUM(accel,"exact_cases",as.bit_exact?as.exact_cases:0);
+    STR(accel,"algorithm",as.bit_exact?"exact coefficient interpolation":"endpoint FIR sum interpolation; bounded rounding difference");
+    NUM(accel,"scalar_us",as.scalar_us);
+    NUM(accel,"pie_us",as.pie_us);NUM(accel,"reason",as.reason);
+    BOOL(accel,"bit_exact",as.bit_exact);NUM(accel,"error_bound_q27",as.error_bound_q27);
+    NUM(accel,"max_error_q27",as.max_error_q27);
+#endif
+    BB(connected);BB(playing);BB(simulated);BB(output_active);BB(primed);
+    BN(packets);BN(overflows);BN(underruns);BN(queued_frames);BN(drift_ppm);
+    BN(pcm_frames);BN(consumed_frames);BN(rendered_frames);BN(discarded_frames);
+    BN(pcm_gap_events);BN(pcm_gap_blocks);BN(prefill_blocks);BN(rebuffer_events);BN(rebuffer_resumes);BN(rebuffer_blocks);
+    BN(queue_min);BN(queue_max);BN(target_frames);BN(rx_interval_max_us);BN(pcm_interval_max_us);
+    #if CONFIG_CHIME_LDAC_REPLAY_TEST
+    BOOL(root,"ldac_replay_enabled",true);
+#else
+    BOOL(root,"ldac_replay_enabled",false);
+#endif
+#if CONFIG_CHIME_LDAC_REPLAY_TEST
+    chime_ldac_replay_status_t replay;chime_ldac_replay_snapshot(&replay);
+    cJSON *test=NULL;OBJ(root,"ldac_replay",test);
+    BOOL(test,"active",replay.active);BOOL(test,"preloaded",replay.preloaded);BOOL(test,"flash_ready",replay.flash_ready);
+    NUM(test,"fixture_frames",replay.fixture_frames);NUM(test,"completed_cycles",replay.completed_cycles);NUM(test,"fixture_error",replay.fixture_error);
+#if CONFIG_CHIME_LDAC_REPLAY_FLASH
+    BOOL(test,"flash_enabled",true);STR(test,"fixture_sha256",CONFIG_CHIME_LDAC_REPLAY_FLASH_SHA256);
+#else
+    BOOL(test,"flash_enabled",false);
+#endif
+    NUM(test,"epoch",replay.epoch);
+    NUM(test,"rate",replay.rate);NUM(test,"duration_s",replay.duration_s);NUM(test,"ppm",replay.ppm);
+    NUM(test,"uploaded_frames",replay.uploaded_frames);NUM(test,"submitted_frames",replay.submitted_frames);
+    NUM(test,"packets",replay.packets);NUM(test,"max_late_us",replay.max_late_us);
+    NUM(test,"failure_reason",replay.failure_reason);NUM(test,"queued_packets",replay.queued_packets);NUM(test,"start_us",replay.start_us);NUM(test,"error",replay.error);
+#endif
+    OBJ(root,"render",r);
+#define RN(name) NUM(r,#name,render.name)
+    RN(blocks);RN(usb_short);RN(bt_short);RN(clips);RN(peak);RN(max_compute_us);RN(deadline_misses);
+    RN(last_compute_us);RN(last_src_us);RN(max_src_us);RN(last_write_us);RN(max_write_us);
+    RN(last_period_us);RN(max_period_us);RN(src_blocks);RN(src_total_us);RN(src_inflight_us);
+    BOOL(r,"src_active",render.src_active);
+    BOOL(r,"clock_follow",render.clock_follow);RN(clock_command_ppm);RN(clock_rate_q16);
+    OBJ(root,"decoder",d);BOOL(d,"valid",decoder_valid);
+#if CONFIG_BT_A2DP_USE_EXTERNAL_CODEC
+    /* An invalid seqlock read is unavailable, never an all-zero sample. */
+    if(decoder_valid){
+#define DN(name) NUM(d,#name,decoder.name)
+        DN(epoch);DN(packets);DN(slow_packets);DN(packet_us);DN(max_packet_us);DN(decode_us);DN(pcm_us);
+        DN(max_decode_us);DN(max_pcm_us);DN(open_free_dma_bytes);DN(open_free_rtc_bytes);
+        DN(ldac_fast_reserved_bytes);DN(ldac_fast_used_bytes);DN(ldac_fast_peak_bytes);DN(ldac_fast_failures);
+        DN(queue_wait_us);DN(max_queue_wait_us);DN(raw_after_dequeue);DN(raw_max_after_dequeue);
+        DN(ldac_frames);DN(ldac_pcm_frames);
+        DN(capacity_wait_us);DN(max_capacity_wait_us);DN(capacity_waits);DN(capacity_timeouts);
+#undef DN
+    }
+#endif
+#undef RN
+#undef BN
+#undef BB
+#undef UN
+#undef UB
+#undef OBJ
+#undef NUM
+#undef BOOL
+#undef STR
+    return send_json(req,root);
+oom:
+    cJSON_Delete(root);return send_json(req,NULL);
+}
+
 void bench_web_dsp_publish(const bench_dsp_status_t *s)
 {
     atomic_fetch_add(&dsp_sequence,1);
@@ -291,6 +491,78 @@ static esp_err_t wifi_post(httpd_req_t *req)
 }
 /* Manual trusted-LAN bench control. A custom header + exact Origin/Host
  * blocks cross-site simple requests and DNS rebinding; no CORS is enabled. */
+#if CONFIG_CHIME_LDAC_REPLAY_TEST
+/* Same trusted-STA/same-origin barrier as the existing bench controls. Test
+ * mode does not authorize a cross-site request to energize the output. */
+static bool replay_authorized(httpd_req_t *req)
+{
+    chime_network_status_t n;chime_network_snapshot(&n);
+    if(!n.online||chime_network_setup_request(httpd_req_to_sockfd(req)))return false;
+    char host[96],origin[112],expected[112],ip80[24],type[48],confirm[8];
+    snprintf(ip80,sizeof(ip80),"%s:80",n.ip);
+    if(httpd_req_get_hdr_value_str(req,"Host",host,sizeof(host))!=ESP_OK||
+       (strcmp(host,n.ip)&&strcmp(host,ip80)&&strcmp(host,"chime.local")&&strcmp(host,"chime.local:80"))||
+       httpd_req_get_hdr_value_str(req,"Origin",origin,sizeof(origin))!=ESP_OK)return false;
+    snprintf(expected,sizeof(expected),"http://%s",host);
+    return !strcmp(origin,expected)&&
+        httpd_req_get_hdr_value_str(req,"X-Chime-LDAC-Replay",confirm,sizeof(confirm))==ESP_OK&&!strcmp(confirm,"1")&&
+        httpd_req_get_hdr_value_str(req,"Content-Type",type,sizeof(type))==ESP_OK&&!strcmp(type,"application/octet-stream");
+}
+static esp_err_t replay_post(httpd_req_t *req)
+{
+    if(!replay_authorized(req))return error_response(req,"403 Forbidden","{\"error\":\"manual_same_origin_required\"}");
+    if(req->content_len!=1&&req->content_len!=8)return error_response(req,"400 Bad Request","{\"error\":\"invalid_replay_command\"}");
+    uint8_t body[8];size_t got=0;
+    while(got<req->content_len){int n=httpd_req_recv(req,(char *)body+got,req->content_len-got);
+        if(n<=0)return error_response(req,"408 Request Timeout","{\"error\":\"body_timeout\"}");
+        got+=(size_t)n;}
+    if(got==1&&body[0]=='0')chime_ldac_replay_stop();
+#if CONFIG_CHIME_LDAC_REPLAY_FLASH
+    else if(got==1&&body[0]=='P'){
+        bench_status_t source;chime_usb_stats_t usb;chime_usb_snapshot(&usb);
+        chime_bluetooth_status_t bt;chime_bluetooth_snapshot(&bt);
+        if(snapshot(&source)!=ESP_OK||source.amplifiers_enabled||usb.streaming||bt.connected||bt.simulated||
+           source.bridge_connected||source.dsp_external||source.tuning_armed||source.tuning_pending||!source.dsp_default_ready)
+            return error_response(req,"409 Conflict","{\"error\":\"prepare_requires_idle\"}");
+        esp_err_t err=chime_ldac_replay_prepare_flash();
+        if(err!=ESP_OK){char response[96];snprintf(response,sizeof(response),"{\"error\":\"fixture_prepare_failed\",\"code\":%d}",err);
+            return error_response(req,"409 Conflict",response);}
+    }
+#endif
+    else if(got==8){
+        bench_status_t source;
+        if(snapshot(&source)!=ESP_OK||source.bridge_connected||source.dsp_external||source.tuning_armed||
+           source.tuning_pending||source.output_pending||source.source_stopped||!source.dsp_default_ready||
+           source.selected_source!=3||atomic_load(&sound_request)||atomic_load(&dsp_request))
+            return error_response(req,"409 Conflict","{\"error\":\"source_not_ready_or_busy\"}");
+        unsigned rate=chime_replay_u32(body),duration=(unsigned)body[4]|((unsigned)body[5]<<8);
+        int ppm=(int16_t)((unsigned)body[6]|((unsigned)body[7]<<8));
+        esp_err_t err;
+#if CONFIG_CHIME_LDAC_REPLAY_FLASH
+        if(!rate)err=chime_ldac_replay_begin_flash(duration,ppm);
+        else
+#endif
+        err=chime_ldac_replay_begin(rate,duration,ppm);
+        if(err!=ESP_OK)return error_response(req,"409 Conflict","{\"error\":\"replay_not_ready_or_invalid\"}");
+    }else return error_response(req,"400 Bad Request","{\"error\":\"invalid_replay_command\"}");
+    headers(req,"application/json; charset=utf-8");return httpd_resp_send(req,"{\"accepted\":true}",HTTPD_RESP_USE_STRLEN);
+}
+static esp_err_t replay_packets_post(httpd_req_t *req)
+{
+    if(!replay_authorized(req))return error_response(req,"403 Forbidden","{\"error\":\"manual_same_origin_required\"}");
+    if(req->content_len<10||req->content_len>CHIME_REPLAY_BATCH_MAX)
+        return error_response(req,"400 Bad Request","{\"error\":\"invalid_batch_length\"}");
+    uint8_t *body=malloc(req->content_len);
+    if(!body){chime_ldac_replay_stop();return error_response(req,"503 Service Unavailable","{\"error\":\"no_memory\"}");}
+    size_t got=0;
+    while(got<req->content_len){int n=httpd_req_recv(req,(char *)body+got,req->content_len-got);
+        if(n<=0){free(body);chime_ldac_replay_stop();return error_response(req,"408 Request Timeout","{\"error\":\"body_timeout\"}");}
+        got+=(size_t)n;}
+    esp_err_t err=chime_ldac_replay_push(body,got);free(body);
+    if(err!=ESP_OK)return error_response(req,"409 Conflict","{\"error\":\"replay_batch_rejected\"}");
+    headers(req,"application/json; charset=utf-8");return httpd_resp_send(req,"{\"accepted\":true}",HTTPD_RESP_USE_STRLEN);
+}
+#endif
 static esp_err_t tuning_post(httpd_req_t *req)
 {
     chime_network_status_t n;chime_network_snapshot(&n);
@@ -513,12 +785,18 @@ esp_err_t bench_web_start(uint16_t tcp_port)
     if((err=mdns_service_add(NULL,"_http","_tcp",80,http_txt,1))!=ESP_OK)goto fail;
     mdns_txt_item_t tcp_txt[]={{"target","ADAU1451"},{"chip","70"},{"channel","0"}};
     if((err=mdns_service_add("SigmaStudio+ 3.4.0","_sigma-dsp","_tcp",tcp_port,tcp_txt,3))!=ESP_OK)goto fail;
-    httpd_config_t config=HTTPD_DEFAULT_CONFIG();config.server_port=80;config.max_open_sockets=4;config.max_uri_handlers=10;
+    snprintf(audio_boot_id,sizeof(audio_boot_id),"%08lx%08lx",(unsigned long)esp_random(),(unsigned long)esp_random());
+    httpd_config_t config=HTTPD_DEFAULT_CONFIG();config.server_port=80;config.max_open_sockets=4;config.max_uri_handlers=14;
     config.stack_size=8192;config.lru_purge_enable=true;config.recv_wait_timeout=2;config.send_wait_timeout=2;
     if((err=httpd_start(&server,&config))!=ESP_OK)goto fail;
     const httpd_uri_t routes[]={
         {.uri="/",.method=HTTP_GET,.handler=index_get},
         {.uri="/api/status",.method=HTTP_GET,.handler=status_get},
+        {.uri="/api/audio/diagnostics",.method=HTTP_GET,.handler=audio_get},
+#if CONFIG_CHIME_LDAC_REPLAY_TEST
+        {.uri="/api/audio/ldac-replay",.method=HTTP_POST,.handler=replay_post},
+        {.uri="/api/audio/ldac-replay/packets",.method=HTTP_POST,.handler=replay_packets_post},
+#endif
         {.uri="/api/network",.method=HTTP_GET,.handler=network_get},
         {.uri="/api/scan",.method=HTTP_GET,.handler=scan_get},
         {.uri="/api/wifi",.method=HTTP_POST,.handler=wifi_post},

@@ -27,9 +27,9 @@ Bluetooth A2DP ─┘       │
 
 - **USB Audio**：48 kHz、双声道、16-bit PCM。
 - **蓝牙 A2DP**：SBC、AAC-LC，以及实验性的 aptX、aptX HD、Android Opus、LDAC 和 LHDC V5 路径。源码里有不等于各种手机、码率和长时间播放都验证过。LDAC/LHDC 目前输出 44.1/48 kHz 双声道 PCM16；不支持 LHDC V2/V3。
-- **音源切换**：蓝牙连接后切到蓝牙；暂停不切回 USB；断开蓝牙后回到 USB。目前不做 USB/蓝牙混音。
+- **双路混音**：ESP 将 USB 和蓝牙以 48 kHz 混合输出，内部采用 Q5.27 PCM、Q2.30 增益及 64 位中间运算，蓝牙使用自适应多相 FIR SRC。不设固定混音衰减或自动增益；请保持输入音量较低，超范围输出会饱和并计数。并发与实时性能仍需实板验收。
 - **DSP 控制**：SigmaStudio 工程、编译数据和固件里的 DSP 参数会做一致性检查。
-- **本机操作**：编码器调音量，短按静音，长按待机/唤醒；RGB LED 显示状态。Web 页面提供 Wi-Fi 配网和手动控制。
+- **本机操作**：编码器通过 USB HID 只调 PC 系统音量，PC 应将 Chime 设为默认输出；短按对 USB 和蓝牙一起本地静音/恢复，长按待机/唤醒。手机音量独立控制蓝牙；RGB LED 显示状态。Web 页面提供 Wi-Fi 配网和手动控制。
 - **调试**：可信局域网内可通过 TCP bridge 连接 SigmaStudio；另外还有覆盖音频、控件、codec、DSP 数据等的主机测试。
 
 DSP 现在主要干的还是分频、PEQ、Gain 这些基础工作。当初想玩的 Dynamic Loudness、Virtual Bass 等高级算法，还在待办列表里。
@@ -54,7 +54,7 @@ idf.py --preview -C software build
 | [`dsp/`](dsp/) | SigmaStudio 工程、生成数据、ESP32 参数绑定 |
 | [`hardware/`](hardware/) | 嘉立创EDA 工程导出、原理图和 PCB 的 PDF、BOM；**不是** Gerber 制造包 |
 | [`mechanical/`](mechanical/) | 卫星箱、后面板和脚垫的 STEP / 3MF 模型 |
-| [`scripts/`](scripts/) | 构建、DSP 同步和测试脚本 |
+| [`scripts/`](scripts/) | 构建、DSP 同步、测试及发布脚本 |
 | [`tools/wireshark/`](tools/wireshark/) | SigmaDSP 协议分析工具 |
 | [`docs/`](docs/README.zh-CN.md) | 技术文档 |
 
@@ -69,7 +69,7 @@ idf.py --preview -C software build
 
 ## 致谢与许可
 
-蓝牙 codec 部分引用了 [ESP32-A2DP-SINK-WITH-CODECS-UPDATED](https://github.com/WillyBilly06/ESP32-A2DP-SINK-WITH-CODECS-UPDATED)、[LHDC-V5-Decoder](https://github.com/WillyBilly06/LHDC-V5-Decoder) 和 **freeaptx** 的工作。感谢 WillyBilly06 和其他上游作者。具体导入的版本和文件都记录在 [codec 引入清单](software/components/chime_codec_reference/UPSTREAM.json)、[LHDC 快照记录](software/components/chime_codec_reference/vendor/native_bt/codecs/lhdcv5/source_snapshot/SOURCE.json)和 [freeaptx 清单](software/components/chime_freeaptx/UPSTREAM.json)里。我只拿了需要的 codec 相关部分，没有替换 Chime 自己的蓝牙 host 或音频 renderer。
+全部七种外部蓝牙 codec 后端现统一引用 [ESP32-S31-A2DP-Codecs](https://github.com/WillyBilly06/ESP32-S31-A2DP-Codecs)。感谢 WillyBilly06 和各 codec 的上游作者。固定提交和所有文件哈希见 [codec 引入清单](software/components/chime_codec_reference/UPSTREAM.json)，行为差异见 [替换记录与 LHDC 电平回归](software/components/chime_codec_reference/README.md)。只导入 codec 库，没有替换蓝牙 host 或 renderer。旧 [freeaptx 引入清单](software/components/chime_freeaptx/UPSTREAM.json) 对应的 [ESP32-A2DP-SINK-WITH-CODECS-UPDATED](https://github.com/WillyBilly06/ESP32-A2DP-SINK-WITH-CODECS-UPDATED) 源码仅作历史保留，不再链接。
 
 仓库不同部分使用不同的许可证：
 

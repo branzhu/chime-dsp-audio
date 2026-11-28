@@ -1,11 +1,11 @@
 #include "sdkconfig.h"
 #if CONFIG_BT_A2DP_USE_EXTERNAL_CODEC
 #include "chime_bt_decoder.h"
-#include "esp_aac_dec.h"
-#include "esp_sbc_dec.h"
+#if CONFIG_CHIME_LDAC_PIPELINE_TEST
+#include "chime_bt_src.h"
+#endif
+#include "chime_s31_codec.h"
 #if CONFIG_CHIME_BT_VENDOR_CODECS
-#include "esp_opus_dec.h"
-#include "freeaptx.h"
 #include "chime_ldac.h"
 #if CONFIG_CHIME_BT_LHDC_V5
 #include "chime_lhdc.h"
@@ -13,6 +13,12 @@
 #include <string.h>
 #endif
 #include "esp_log.h"
+#ifdef ESP_PLATFORM
+#include "esp_heap_caps.h"
+#if CONFIG_CHIME_BT_VENDOR_CODECS
+#include "chime_ldac_memory.h"
+#endif
+#endif
 #include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -25,7 +31,7 @@
 #define RAW_DEPTH 12
 #define RAW_MAX_BYTES 4096
 #define PCM_BYTES 4096
-/* CPU0 owns BT/Wi-Fi and the low-priority DSP/control task. A continuously
+/* CPU0 owns scalar PCM rendering, BT/Wi-Fi and DSP/control. A continuously
  * ready floating-point worker must not starve source admission on that core.
  * Explicit affinity also avoids lazy FPU pinning choosing CPU0 accidentally. */
 #if CONFIG_FREERTOS_UNICORE
@@ -67,11 +73,22 @@ static uint32_t active_epoch;
 static uint8_t *output;
 /* Completed packet times are diagnostic only; never change admission/safety. */
 static atomic_uint last_packet_us,max_packet_us,last_decode_us,last_pcm_us,last_open_us;
+static atomic_uint max_decode_us,max_pcm_us,open_free_dma_bytes,open_free_rtc_bytes;
 static atomic_uint stats_revision,stats_epoch,stats_packets,stats_slow,stats_audio_us;
+static atomic_uint stats_ldac_frames,stats_ldac_pcm_frames,stats_ldac_same_input,stats_ldac_ts_same;
+static atomic_uint stats_ldac_ts_delta,stats_ldac_previous_frames;
+#if CONFIG_CHIME_BT_VENDOR_CODECS
+static bool ldac_previous_seen;
+static uint32_t ldac_previous_ts,ldac_previous_crc,ldac_previous_bytes,ldac_previous_samples;
+#endif
 static atomic_uint stats_wait_us,stats_max_wait_us,stats_raw_after,stats_raw_max_after;
+static atomic_uint stats_capacity_us,stats_capacity_max_us,stats_capacity_waits,stats_capacity_timeouts;
 bool chime_bt_decoder_snapshot(chime_bt_decoder_stats_t *out)
 {
     if(!out)return false;
+#if defined(ESP_PLATFORM) && CONFIG_CHIME_BT_VENDOR_CODECS
+    chime_ldac_memory_stats_t memory;chime_ldac_memory_snapshot(&memory);
+#endif
     for(unsigned attempt=0;attempt<3;++attempt){
         unsigned revision=atomic_load(&stats_revision);if(revision&1u)continue;
         chime_bt_decoder_stats_t s={
@@ -79,8 +96,19 @@ bool chime_bt_decoder_snapshot(chime_bt_decoder_stats_t *out)
             .packet_us=atomic_load(&last_packet_us),.max_packet_us=atomic_load(&max_packet_us),
             .decode_us=atomic_load(&last_decode_us),.pcm_us=atomic_load(&last_pcm_us),.open_us=atomic_load(&last_open_us),
             .audio_us=atomic_load(&stats_audio_us),
+            .max_decode_us=atomic_load(&max_decode_us),.max_pcm_us=atomic_load(&max_pcm_us),
+#if defined(ESP_PLATFORM) && CONFIG_CHIME_BT_VENDOR_CODECS
+            .ldac_fast_reserved_bytes=memory.reserved_bytes,.ldac_fast_used_bytes=memory.used_bytes,
+            .ldac_fast_peak_bytes=memory.peak_bytes,.ldac_fast_failures=memory.failures,
+#endif
+            .open_free_dma_bytes=atomic_load(&open_free_dma_bytes),.open_free_rtc_bytes=atomic_load(&open_free_rtc_bytes),
             .queue_wait_us=atomic_load(&stats_wait_us),.max_queue_wait_us=atomic_load(&stats_max_wait_us),
-            .raw_after_dequeue=atomic_load(&stats_raw_after),.raw_max_after_dequeue=atomic_load(&stats_raw_max_after)};
+            .raw_after_dequeue=atomic_load(&stats_raw_after),.raw_max_after_dequeue=atomic_load(&stats_raw_max_after),
+            .ldac_frames=atomic_load(&stats_ldac_frames),.ldac_pcm_frames=atomic_load(&stats_ldac_pcm_frames),
+            .ldac_same_input=atomic_load(&stats_ldac_same_input),.ldac_ts_same=atomic_load(&stats_ldac_ts_same),
+            .ldac_ts_delta=atomic_load(&stats_ldac_ts_delta),.ldac_previous_frames=atomic_load(&stats_ldac_previous_frames),
+            .capacity_wait_us=atomic_load(&stats_capacity_us),.max_capacity_wait_us=atomic_load(&stats_capacity_max_us),
+            .capacity_waits=atomic_load(&stats_capacity_waits),.capacity_timeouts=atomic_load(&stats_capacity_timeouts)};
         if(revision==atomic_load(&stats_revision)){*out=s;return true;}
     }
     return false;
@@ -88,13 +116,23 @@ bool chime_bt_decoder_snapshot(chime_bt_decoder_stats_t *out)
 static void stats_reset(uint32_t epoch)
 {
     atomic_fetch_add(&stats_revision,1);
+    atomic_store(&max_decode_us,0);atomic_store(&max_pcm_us,0);
+    atomic_store(&open_free_dma_bytes,0);atomic_store(&open_free_rtc_bytes,0);
     atomic_store(&stats_epoch,epoch);atomic_store(&stats_packets,0);atomic_store(&stats_slow,0);atomic_store(&stats_audio_us,0);
+    atomic_store(&stats_capacity_us,0);atomic_store(&stats_capacity_max_us,0);
+    atomic_store(&stats_capacity_waits,0);atomic_store(&stats_capacity_timeouts,0);
     atomic_store(&stats_wait_us,0);atomic_store(&stats_max_wait_us,0);atomic_store(&stats_raw_after,0);atomic_store(&stats_raw_max_after,0);
+    atomic_store(&stats_ldac_frames,0);atomic_store(&stats_ldac_pcm_frames,0);
+    atomic_store(&stats_ldac_same_input,0);atomic_store(&stats_ldac_ts_same,0);
+    atomic_store(&stats_ldac_ts_delta,0);atomic_store(&stats_ldac_previous_frames,0);
+#if CONFIG_CHIME_BT_VENDOR_CODECS
+    ldac_previous_seen=false;
+#endif
     atomic_store(&last_packet_us,0);atomic_store(&max_packet_us,0);
     atomic_store(&last_decode_us,0);atomic_store(&last_pcm_us,0);atomic_store(&last_open_us,0);
     atomic_fetch_add(&stats_revision,1);
 }
-static uint32_t packet_pcm_bytes,packet_decode_us,packet_pcm_us,packet_open_us;
+static uint32_t packet_pcm_bytes,packet_decode_us,packet_pcm_us,packet_open_us,packet_capacity_us;
 
 #if CONFIG_CHIME_BT_VENDOR_CODECS
 /* IEEE CRC32, fixed 16-entry flash table. Diagnostics only: no retry, acceptance
@@ -192,16 +230,16 @@ static uint8_t lhdc_sequence;
 static void close_decoder(void)
 {
     if (decoder) {
-        if (active_codec == CHIME_BT_CODEC_AAC) esp_aac_dec_close(decoder);
+        if (active_codec == CHIME_BT_CODEC_AAC) chime_s31_close(decoder);
 #if CONFIG_CHIME_BT_VENDOR_CODECS
 #if CONFIG_CHIME_BT_LHDC_V5
         else if(active_codec==CHIME_BT_CODEC_LHDC_V5)chime_lhdc_close(decoder);
 #endif
         else if(active_codec==CHIME_BT_CODEC_LDAC)chime_ldac_close(decoder);
-        else if(active_codec==CHIME_BT_CODEC_OPUS)esp_opus_dec_close(decoder);
-        else if(active_codec==CHIME_BT_CODEC_APTX||active_codec==CHIME_BT_CODEC_APTX_HD)aptx_finish(decoder);
+        else if(active_codec==CHIME_BT_CODEC_OPUS)chime_s31_close(decoder);
+        else if(active_codec==CHIME_BT_CODEC_APTX||active_codec==CHIME_BT_CODEC_APTX_HD)chime_s31_close(decoder);
 #endif
-        else esp_sbc_dec_close(decoder);
+        else chime_s31_close(decoder);
         decoder = NULL;
     }
 }
@@ -216,42 +254,28 @@ static bool open_decoder(const packet_t *p)
     lhdc_sequence_valid=false;
 #endif
 #endif
-    esp_audio_err_t err;
-    if (p->codec == CHIME_BT_CODEC_AAC) {
-        esp_aac_dec_cfg_t config = ESP_AAC_DEC_CONFIG_DEFAULT();
-        config.sample_rate = (int32_t)p->rate;
-        config.channel = (uint8_t)p->channels;
-        config.bits_per_sample = 16;
-        config.no_adts_header = true;
-        config.aac_plus_enable = false; /* Only AAC-LC is advertised. */
-        err = esp_aac_dec_open(&config, sizeof(config), &decoder);
-    } else if (p->codec == CHIME_BT_CODEC_SBC) {
-        esp_sbc_dec_cfg_t config = ESP_SBC_DEC_CONFIG_DEFAULT();
-        config.sbc_mode = ESP_SBC_MODE_STD;
-        config.ch_num = (uint8_t)p->channels;
-        config.enable_plc = false; /* Never synthesize after a lost epoch. */
-        err = esp_sbc_dec_open(&config, sizeof(config), &decoder);
-    }
+    int err=CHIME_CODEC_ERROR;
+    if(p->codec==CHIME_BT_CODEC_AAC)decoder=chime_s31_open(CHIME_S31_AAC,p->rate,p->channels);
+    else if(p->codec==CHIME_BT_CODEC_SBC)decoder=chime_s31_open(CHIME_S31_SBC,p->rate,p->channels);
 #if CONFIG_CHIME_BT_VENDOR_CODECS
 #if CONFIG_CHIME_BT_LHDC_V5
-    else if(p->codec==CHIME_BT_CODEC_LHDC_V5){
-        decoder=chime_lhdc_open(p->rate,p->channels);err=decoder?ESP_AUDIO_ERR_OK:-1;
-    }
+    else if(p->codec==CHIME_BT_CODEC_LHDC_V5)decoder=chime_lhdc_open(p->rate,p->channels);
 #endif
-    else if(p->codec==CHIME_BT_CODEC_LDAC){
-        decoder=chime_ldac_open(p->rate,p->channels);err=decoder?ESP_AUDIO_ERR_OK:-1;
-    }else if(p->codec==CHIME_BT_CODEC_OPUS){
-        esp_opus_dec_cfg_t config=ESP_OPUS_DEC_CONFIG_DEFAULT();
-        config.sample_rate=48000;config.channel=2;
-        config.frame_duration=ESP_OPUS_DEC_FRAME_DURATION_20_MS;config.self_delimited=false;
-        err=esp_opus_dec_open(&config,sizeof(config),&decoder);
-    }else if(p->codec==CHIME_BT_CODEC_APTX||p->codec==CHIME_BT_CODEC_APTX_HD){
-        decoder=aptx_init(p->codec==CHIME_BT_CODEC_APTX_HD);err=decoder?ESP_AUDIO_ERR_OK:-1;
-    }
+    else if(p->codec==CHIME_BT_CODEC_LDAC)decoder=chime_ldac_open(p->rate,p->channels);
+    else if(p->codec==CHIME_BT_CODEC_OPUS)decoder=chime_s31_open(CHIME_S31_OPUS,p->rate,p->channels);
+    else if(p->codec==CHIME_BT_CODEC_APTX||p->codec==CHIME_BT_CODEC_APTX_HD)
+        decoder=chime_s31_open(p->codec==CHIME_BT_CODEC_APTX_HD?CHIME_S31_APTX_HD:CHIME_S31_APTX,p->rate,p->channels);
 #endif
     else return false;
-    if(err != ESP_AUDIO_ERR_OK)ESP_LOGE(TAG,"open codec=%u error=%d",(unsigned)p->codec,(int)err);
-    return err == ESP_AUDIO_ERR_OK && decoder;
+    if(decoder)err=CHIME_CODEC_OK;
+    if(err != CHIME_CODEC_OK)ESP_LOGE(TAG,"open codec=%u error=%d",(unsigned)p->codec,(int)err);
+#ifdef ESP_PLATFORM
+    if(err==CHIME_CODEC_OK&&decoder){
+        atomic_store(&open_free_dma_bytes,heap_caps_get_free_size(MALLOC_CAP_INTERNAL|MALLOC_CAP_8BIT|MALLOC_CAP_DMA));
+        atomic_store(&open_free_rtc_bytes,heap_caps_get_free_size(MALLOC_CAP_RTCRAM|MALLOC_CAP_8BIT));
+    }
+#endif
+    return err == CHIME_CODEC_OK && decoder;
 }
 #if CONFIG_CHIME_BT_VENDOR_CODECS
 /* Raw callback is post-AVDTP: no second RTP header to skip. The one-byte
@@ -311,6 +335,30 @@ static void ldac_layout_fail(const packet_t *p,const uint8_t *data,uint32_t leng
         hex[used]=0;ESP_LOGE(TAG,"LDAC packet +%04x: %s",at,hex);
     }
 }
+/* A2DP aggregation is a production burst, not permission to overflow PCM.
+ * Only the decoder owns this producer; the consumer can only increase space.
+ * Never hold the Bluetooth spinlock while waiting or decoding. */
+#define LDAC_PCM_CAPACITY_TIMEOUT_US 100000U
+static bool ldac_wait_for_capacity(const packet_t *p)
+{
+    if(cb.service)cb.service(p->epoch);
+    if(!cb.pcm_capacity||cb.pcm_capacity(p->epoch)>=128U)return true;
+    int64_t began=esp_timer_get_time();bool ready=false,timed_out=false;
+    while(!atomic_load(&stopping)&&cb.valid(p->epoch)){
+        if(esp_timer_get_time()-began>=LDAC_PCM_CAPACITY_TIMEOUT_US){timed_out=true;break;}
+        if(cb.service)cb.service(p->epoch);
+        if(cb.pcm_capacity(p->epoch)>=128U){ready=true;break;}
+        vTaskDelay(1); /* one tick, not a busy loop; USB task remains runnable */
+    }
+    unsigned elapsed=(unsigned)(esp_timer_get_time()-began);
+    packet_capacity_us+=elapsed;
+    atomic_fetch_add(&stats_revision,1);
+    atomic_fetch_add(&stats_capacity_waits,1);
+    if(timed_out)atomic_fetch_add(&stats_capacity_timeouts,1);
+    atomic_fetch_add(&stats_revision,1);
+    if(timed_out)packet_fail(p,ESP_ERR_TIMEOUT,"pcm-capacity-timeout");
+    return ready;
+}
 static bool opus_twenty_ms(const uint8_t *data,uint32_t length)
 {
     if(!length)return false;
@@ -343,7 +391,7 @@ static void process_packet(const packet_t *p)
         if(!opened){packet_fail(p,ESP_FAIL,"open");return;}
     }
     bool timing_sent=false;
-    esp_audio_dec_in_raw_t in = {.buffer=p->buffer->data, .len=p->buffer->data_len};
+    chime_codec_input_t in = {.buffer=p->buffer->data, .len=p->buffer->data_len};
 #if CONFIG_CHIME_BT_VENDOR_CODECS
     unsigned frames=0;
 #if CONFIG_CHIME_BT_LHDC_V5
@@ -369,6 +417,23 @@ static void process_packet(const packet_t *p)
 #endif
     if(p->codec==CHIME_BT_CODEC_OPUS||p->codec==CHIME_BT_CODEC_LDAC){
         if(!vendor_payload(p,&in.buffer,&in.len,&frames)){packet_fail(p,ESP_ERR_INVALID_SIZE,"payload-header/fragment");return;}
+        if(p->codec==CHIME_BT_CODEC_LDAC){
+            uint32_t ts=p->buffer->timestamp;
+            atomic_fetch_add(&stats_revision,1);
+            if(ldac_previous_seen){
+                atomic_store(&stats_ldac_ts_delta,ts-ldac_previous_ts);
+                atomic_store(&stats_ldac_previous_frames,ldac_previous_samples);
+                if(ts==ldac_previous_ts){
+                    atomic_fetch_add(&stats_ldac_ts_same,1);
+                    if(p->worker.hashed&&p->worker.crc32==ldac_previous_crc&&p->worker.bytes==ldac_previous_bytes)
+                        atomic_fetch_add(&stats_ldac_same_input,1);
+                }
+            }
+            atomic_fetch_add(&stats_revision,1);
+            ldac_previous_seen=p->worker.hashed;ldac_previous_ts=ts;
+            ldac_previous_crc=p->worker.crc32;ldac_previous_bytes=p->worker.bytes;
+            ldac_previous_samples=frames*128U;
+        }
         if(!in.len)return; /* bounded fragment collection, not a decoder call */
         if(p->codec==CHIME_BT_CODEC_OPUS&&!opus_twenty_ms(in.buffer,in.len)){packet_fail(p,ESP_ERR_NOT_SUPPORTED,"packet-duration");return;}
     }
@@ -383,6 +448,7 @@ static void process_packet(const packet_t *p)
             next+=n;remaining-=(uint32_t)n;
         }
         if(remaining){ldac_layout_fail(p,in.buffer,in.len,count,count,in.len-remaining,"trailing-bytes-after-frame-count");return;}
+        atomic_fetch_add(&stats_revision,1);atomic_fetch_add(&stats_ldac_frames,count);atomic_fetch_add(&stats_revision,1);
     }
     if(p->codec==CHIME_BT_CODEC_APTX||p->codec==CHIME_BT_CODEC_APTX_HD){
         unsigned frame=p->codec==CHIME_BT_CODEC_APTX_HD?6U:4U;
@@ -392,40 +458,39 @@ static void process_packet(const packet_t *p)
     /* A packet cannot make more than RAW_MAX_BYTES iterations: successful
      * iterations must consume input. Reject zero-progress and corrupt lengths. */
     while (in.len && !atomic_load(&stopping) && cb.valid(p->epoch)) {
+#if CONFIG_CHIME_BT_VENDOR_CODECS
+        if(p->codec==CHIME_BT_CODEC_LDAC&&!ldac_wait_for_capacity(p))return;
+#endif
         in.consumed = 0;
-        esp_audio_dec_out_frame_t out = {.buffer=output, .len=PCM_BYTES};
-        esp_audio_dec_info_t info = {0};
-        esp_audio_err_t err;
+        chime_codec_output_t out = {.buffer=output, .len=PCM_BYTES};
+        chime_codec_info_t info = {0};
+        int err;
         int64_t decode_began=esp_timer_get_time();
 #if CONFIG_CHIME_BT_VENDOR_CODECS
 #if CONFIG_CHIME_BT_LHDC_V5
         if(p->codec==CHIME_BT_CODEC_LHDC_V5){
             size_t n=chime_lhdc_frame_bytes(in.buffer,in.len);
             out.decoded_size=(uint32_t)chime_lhdc_decode(decoder,in.buffer,n,output,PCM_BYTES);
-            in.consumed=(uint32_t)n;err=out.decoded_size==960?ESP_AUDIO_ERR_OK:-1;
-            info=(esp_audio_dec_info_t){.sample_rate=p->rate,.channel=2,.bits_per_sample=16};
+            in.consumed=(uint32_t)n;err=out.decoded_size==960?CHIME_CODEC_OK:-1;
+            info=(chime_codec_info_t){.sample_rate=p->rate,.channel=2,.bits_per_sample=16};
         }else
 #endif
         if(p->codec==CHIME_BT_CODEC_LDAC){
             size_t n=chime_ldac_frame_bytes(in.buffer,in.len,p->rate);
             out.decoded_size=(uint32_t)chime_ldac_decode(decoder,in.buffer,n,output,PCM_BYTES);
-            in.consumed=(uint32_t)n;err=out.decoded_size==512?ESP_AUDIO_ERR_OK:-1;
-            info=(esp_audio_dec_info_t){.sample_rate=p->rate,.channel=2,.bits_per_sample=16};
-        }else if(p->codec==CHIME_BT_CODEC_APTX||p->codec==CHIME_BT_CODEC_APTX_HD){
-            size_t written=0,consumed=aptx_decode16(decoder,in.buffer,in.len,output,PCM_BYTES,&written);
-            in.consumed=(uint32_t)consumed;out.decoded_size=(uint32_t)written;err=ESP_AUDIO_ERR_OK;
-            info=(esp_audio_dec_info_t){.sample_rate=p->rate,.channel=2,.bits_per_sample=16};
-        }else if(p->codec==CHIME_BT_CODEC_OPUS){
-            err=esp_opus_dec_decode(decoder,&in,&out,&info);
-            if(err==ESP_AUDIO_ERR_OK&&(in.consumed!=in.len||out.decoded_size!=3840)){
-                packet_fail(p,ESP_ERR_INVALID_SIZE,"frame-layout");return;
-            }
+            in.consumed=(uint32_t)n;err=out.decoded_size==512?CHIME_CODEC_OK:-1;
+            info=(chime_codec_info_t){.sample_rate=p->rate,.channel=2,.bits_per_sample=16};
         }else
 #endif
-        if(p->codec==CHIME_BT_CODEC_AAC)err=esp_aac_dec_decode(decoder,&in,&out,&info);
-        else err=esp_sbc_dec_decode(decoder,&in,&out,&info);
+        {
+            err=chime_s31_decode(decoder,&in,&out,&info);
+            if(p->codec==CHIME_BT_CODEC_OPUS&&err==CHIME_CODEC_OK&&
+               (in.consumed!=in.len||out.decoded_size!=3840)){
+                packet_fail(p,ESP_ERR_INVALID_SIZE,"frame-layout");return;
+            }
+        }
         packet_decode_us+=(unsigned)(esp_timer_get_time()-decode_began);
-        if (err != ESP_AUDIO_ERR_OK || !in.consumed || in.consumed > in.len ||
+        if (err != CHIME_CODEC_OK || !in.consumed || in.consumed > in.len ||
             out.decoded_size > PCM_BYTES || out.decoded_size % (p->channels * 2U)) {
             ESP_LOGE(TAG,"decode codec=%u error=%d input=%u consumed=%u output=%u",
                 (unsigned)p->codec,(int)err,(unsigned)in.len,(unsigned)in.consumed,(unsigned)out.decoded_size);
@@ -439,6 +504,11 @@ static void process_packet(const packet_t *p)
                 packet_fail(p,ESP_ERR_NOT_SUPPORTED,"decoded-format");
                 return;
             }
+#if CONFIG_CHIME_BT_VENDOR_CODECS
+            if(p->codec==CHIME_BT_CODEC_LDAC){
+                atomic_fetch_add(&stats_revision,1);atomic_fetch_add(&stats_ldac_pcm_frames,out.decoded_size/(p->channels*2U));atomic_fetch_add(&stats_revision,1);
+            }
+#endif
             packet_pcm_bytes+=out.decoded_size;
             int64_t pcm_began=esp_timer_get_time();
             if(!timing_sent&&cb.timing&&cb.valid(p->epoch)){cb.timing(p->epoch,p->enqueued_us);timing_sent=true;}
@@ -449,39 +519,60 @@ static void process_packet(const packet_t *p)
         in.len -= in.consumed;
     }
 }
+#if CONFIG_CHIME_LDAC_PIPELINE_TEST || CONFIG_CHIME_BT_VENDOR_CODECS
+/* Match the S31 upstream decoder worker budget (Opus/LHDC scratch). */
+#define DECODE_STACK_BYTES 8192
+#else
+#define DECODE_STACK_BYTES 6144
+#endif
 static void decode_task(void *arg)
 {
     (void)arg;
     packet_t p;
+#ifdef ESP_PLATFORM
+    ESP_LOGI(TAG,"worker memory stack_sample=%p output=%p; HP SRAM=0x2f..., RTC/LP=0x2e... on S31",
+        (void *)&p,(void *)output);
+#endif
+#if CONFIG_CHIME_LDAC_PIPELINE_TEST
+    /* Already pinned CPU1. Probing here must NEVER migrate source_pcm. */
+    chime_bt_src_accel_init();
+#endif
     uint32_t timing_epoch=0;unsigned epoch_packets=0;bool slow_reported=false;
     while (!atomic_load(&stopping)) {
-        if (xQueueReceive(raw_queue, &p, pdMS_TO_TICKS(20)) == pdTRUE) {
+        if(cb.service&&active_epoch)cb.service(active_epoch);
+        if (xQueueReceive(raw_queue, &p, pdMS_TO_TICKS(cb.service?1:20)) == pdTRUE) {
             if(timing_epoch!=p.epoch){timing_epoch=p.epoch;slow_reported=false;epoch_packets=0;
                 stats_reset(p.epoch);}
-            packet_pcm_bytes=packet_decode_us=packet_pcm_us=packet_open_us=0;
+            packet_pcm_bytes=packet_decode_us=packet_pcm_us=packet_open_us=packet_capacity_us=0;
             int64_t began=esp_timer_get_time();
             uint64_t waited=(uint64_t)began>=p.enqueued_us?(uint64_t)began-p.enqueued_us:0;
             unsigned wait_us=waited>UINT32_MAX?UINT32_MAX:(unsigned)waited;
             unsigned raw_after=(unsigned)uxQueueMessagesWaiting(raw_queue);
+            atomic_fetch_add(&stats_revision,1);
+            atomic_store(&stats_wait_us,wait_us);atomic_store(&stats_raw_after,raw_after);
+            if(wait_us>atomic_load(&stats_max_wait_us))atomic_store(&stats_max_wait_us,wait_us);
+            if(raw_after>atomic_load(&stats_raw_max_after))atomic_store(&stats_raw_max_after,raw_after);
+            atomic_fetch_add(&stats_revision,1);
             process_packet(&p);
             unsigned elapsed=(unsigned)(esp_timer_get_time()-began);
             ++epoch_packets;
             unsigned budget=p.rate&&p.channels?(unsigned)((uint64_t)packet_pcm_bytes*1000000U/(p.rate*p.channels*2U)):0;
             atomic_fetch_add(&stats_revision,1);
-            atomic_store(&stats_wait_us,wait_us);atomic_store(&stats_raw_after,raw_after);
-            if(wait_us>atomic_load(&stats_max_wait_us))atomic_store(&stats_max_wait_us,wait_us);
-            if(raw_after>atomic_load(&stats_raw_max_after))atomic_store(&stats_raw_max_after,raw_after);
             atomic_store(&stats_packets,epoch_packets);atomic_store(&stats_audio_us,budget);
             if(budget&&elapsed>budget)atomic_fetch_add(&stats_slow,1);
             atomic_store(&last_decode_us,packet_decode_us);atomic_store(&last_pcm_us,packet_pcm_us);atomic_store(&last_open_us,packet_open_us);
+            if(packet_decode_us>atomic_load(&max_decode_us))atomic_store(&max_decode_us,packet_decode_us);
+            if(packet_pcm_us>atomic_load(&max_pcm_us))atomic_store(&max_pcm_us,packet_pcm_us);
             atomic_store(&last_packet_us,elapsed);
+            atomic_store(&stats_capacity_us,packet_capacity_us);
+            if(packet_capacity_us>atomic_load(&stats_capacity_max_us))atomic_store(&stats_capacity_max_us,packet_capacity_us);
             if(elapsed>atomic_load(&max_packet_us))atomic_store(&max_packet_us,elapsed);
             atomic_fetch_add(&stats_revision,1);
             if(budget&&elapsed>budget&&(!slow_reported||epoch_packets==8)){
-                unsigned stages=packet_decode_us+packet_pcm_us+packet_open_us;
-                ESP_LOGW(TAG,"decode slower than audio codec=%u epoch=%lu packet=%u packet_us=%u audio_us=%u raw_q=%u decode_us=%u pcm_us=%u open_us=%u other_us=%u; stage WALL times include preemption",
+                unsigned stages=packet_decode_us+packet_pcm_us+packet_open_us+packet_capacity_us;
+                ESP_LOGW(TAG,"packet slower than audio codec=%u epoch=%lu packet=%u packet_us=%u audio_us=%u raw_q=%u decode_us=%u pcm_us=%u open_us=%u capacity_us=%u other_us=%u; WALL times include preemption and capacity wait, not CPU utilization",
                     (unsigned)p.codec,(unsigned long)p.epoch,epoch_packets,elapsed,budget,(unsigned)uxQueueMessagesWaiting(raw_queue),
-                    packet_decode_us,packet_pcm_us,packet_open_us,elapsed>stages?elapsed-stages:0U);
+                    packet_decode_us,packet_pcm_us,packet_open_us,packet_capacity_us,elapsed>stages?elapsed-stages:0U);
                 slow_reported=true;
             }
             esp_a2d_audio_buff_free(p.buffer);
@@ -490,6 +581,9 @@ static void decode_task(void *arg)
     }
     close_decoder();
     while (xQueueReceive(raw_queue, &p, 0) == pdTRUE) esp_a2d_audio_buff_free(p.buffer);
+#if CONFIG_CHIME_LDAC_PIPELINE_TEST
+    chime_bt_src_accel_deinit();
+#endif
     /* Last access to shared resources; caller may now delete queue/output. */
     atomic_store(&exited, true);
     vTaskDelete(NULL);
@@ -504,13 +598,18 @@ esp_err_t chime_bt_decoder_start(const chime_bt_decoder_callbacks_t *callbacks)
     if (!raw_queue || !output) goto fail;
     atomic_store(&stopping, false);
     atomic_store(&exited, false);
-    if (xTaskCreatePinnedToCore(decode_task, "bt_decode", 6144, NULL, 5, NULL, DECODE_CORE) != pdPASS) goto fail;
+    if (xTaskCreatePinnedToCore(decode_task, "bt_decode", DECODE_STACK_BYTES, NULL, 5, NULL, DECODE_CORE) != pdPASS) goto fail;
+#if defined(ESP_PLATFORM) && CONFIG_CHIME_BT_VENDOR_CODECS
+    chime_ldac_memory_stats_t memory;chime_ldac_memory_snapshot(&memory);
+    ESP_LOGI(TAG,"LDAC fast workspace base=%p reserved=%lu; no RTC/PSRAM fallback",
+        (void *)memory.base,(unsigned long)memory.reserved_bytes);
+#endif
     ESP_LOGI(TAG,"worker ready core=%u priority=5 raw_depth=%u; decode only while BT output enabled",(unsigned)DECODE_CORE,(unsigned)RAW_DEPTH);
 #if CONFIG_CHIME_BT_VENDOR_CODECS
 #if CONFIG_CHIME_BT_LHDC_V5
-    ESP_LOGI(TAG,"LDAC/LHDC backend=WillyBilly06 reference 45281c5 lhdc_v5=1; PCM16 44.1/48k");
+    ESP_LOGI(TAG,"LDAC/LHDC backend=WillyBilly06 reference 71071a7 lhdc_v5=1; PCM16 44.1/48k");
 #else
-    ESP_LOGI(TAG,"LDAC/LHDC backend=WillyBilly06 reference 45281c5 lhdc_v5=0; PCM16 44.1/48k");
+    ESP_LOGI(TAG,"LDAC/LHDC backend=WillyBilly06 reference 71071a7 lhdc_v5=0; PCM16 44.1/48k");
 #endif
 #endif
     return ESP_OK;

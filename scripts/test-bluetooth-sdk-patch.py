@@ -44,8 +44,8 @@ with tempfile.TemporaryDirectory(dir=ROOT/'tmp', prefix='bt-sdk-test-') as t:
             assert delay_result==(delay_out/'btc_av.c').read_bytes()
         p.write_bytes(b)
     assert original=={n:(sdk/'host/bluedroid'/n).read_bytes() for n in original}
-    for n,b in json.loads((ROOT/'software/components/chime_freeaptx/UPSTREAM.json').read_text())['files'].items():
-        assert hashlib.sha256((ROOT/'software/components/chime_freeaptx'/n).read_bytes()).hexdigest()==b
+    for n,b in json.loads((ROOT/'software/components/chime_codec_reference/UPSTREAM.json').read_text())['files'].items():
+        assert hashlib.sha256((ROOT/'software/components/chime_codec_reference/vendor'/n).read_bytes()).hexdigest()==b
     # Extract from generated source with the SAME function scanner; execute this
     # function itself with small AVDTP/allocator fakes, not a rewritten algorithm.
     captured=[]

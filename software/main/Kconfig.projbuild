@@ -1,4 +1,63 @@
 menu "Chime Bluetooth"
+config CHIME_LDAC_APLL_FOLLOW
+    bool "Experimental LDAC48k direct PCM with seamless APLL clock recovery"
+    depends on IDF_TARGET_ESP32S31 && CHIME_BT_VENDOR_CODECS && !CHIME_LDAC_PIPELINE_TEST
+    default y
+    help
+        LDAC 48k consumes PCM one-for-one, without software drift FIR. A slow
+        buffer controller adjusts only APLL SDM within +/-300ppm. USB feedback
+        follows the output clock model plus its FIFO servo. Requires the single
+        I2S0 master/APLL owner and the unchanged DSP input ASRC configuration.
+        Unsupported clock plans/rates use the fixed-clock FIR path. STOP,
+        tone and source changes restore nominal SDM before releasing I2S.
+        Enabled by default for board validation. Mixed-stream and fixed-clock
+        DSP-output acceptance are still required; disable to restore drift FIR.
+
+config CHIME_LDAC_PIPELINE_TEST
+    bool "TEST ONLY: CPU1 LDAC48k decode+exact SRC, bounded ready48k bridge"
+    depends on IDF_TARGET_ESP32S31 && CHIME_BT_VENDOR_CODECS && !FREERTOS_UNICORE
+    default n
+    help
+        Controlled architecture experiment. One CPU1 worker services SRC between
+        LDAC frames; CPU0 only consumes prepared blocks and writes mixed I2S.
+        Keeps the 192-tap Q30 FIR and exact PCM mathematics. CPU1 PIE is selected
+        only after startup bit-exact checks and complete-path measurement.
+        LDAC 48k only; other rates/codecs retain their original path.
+
+config CHIME_LDAC_DOT_INTERPOLATION_TEST
+    bool "TEST ONLY: interpolate full Q30 FIR dot products (<=26 Q27 LSB bound)"
+    depends on CHIME_LDAC_PIPELINE_TEST
+    default n
+    help
+        Same 192 taps, Q30 coefficients and continuous phase. Moves linear
+        interpolation after the two endpoint FIR sums, deferring per-tap integer
+        truncation. NOT bit-exact to the scalar reference: analytical worst-case
+        difference <=26 Q27 LSB (-134dBFS), far below the PCM16 decoder step.
+        Actual-chip bounded-error selftest and full-kernel timing are required.
+
+config CHIME_LDAC_REPLAY_TEST
+    bool "TEST ONLY: timed LDAC replay ingress (trusted LAN)"
+    depends on CHIME_BT_VENDOR_CODECS && !FREERTOS_UNICORE
+    default n
+    help
+        Explicit HTTP start/stop and bounded ahead-of-time packet ingress.
+        Feeds the real LDAC decoder from an independent ESP timer, not from
+        PCM demand. Never fakes a BT connection; not RF/phone acceptance.
+        No autostart. Disabled builds expose no replay control endpoints.
+
+config CHIME_LDAC_REPLAY_FLASH
+    bool "TEST ONLY: preloaded, seam-qualified LDAC fixture"
+    depends on CHIME_LDAC_REPLAY_TEST
+    default n
+    help
+        Read-only test data partition at 0x400000, 8MiB. Requires the separate
+        bench partition CSV and an explicitly pinned, qualified 48k/31s file.
+        No runtime HTTP supply; no automatic partition creation or flash write.
+config CHIME_LDAC_REPLAY_FLASH_SHA256
+    string "Qualified fixture payload SHA256"
+    depends on CHIME_LDAC_REPLAY_FLASH
+    default ""
+
 config CHIME_BT_DELAY_EXTRA_MS
     int "Calibrated receiver delay correction (ms)"
     range 0 500
@@ -15,17 +74,19 @@ config CHIME_BT_VENDOR_CODECS
     depends on BT_A2DP_USE_EXTERNAL_CODEC
     default y
     help
-        Project-local hash-pinned stack replacements; six SEPs (seven with LHDC V5). Pinned WillyBilly06 reference LDAC decoder, 44.1/48k stereo PCM16. No aptX LL.
+        Project-local hash-pinned stack replacements; six SEPs (seven with LHDC V5). All seven backends use the pinned ESP32-S31-A2DP-Codecs import.
+          Vendor formats remain 44.1/48k stereo PCM16. No aptX LL.
         libfreeaptx is LGPL-2.1-or-later. Review redistribution requirements.
         Disable for the unpatched SBC/AAC recovery build.
 config CHIME_BT_LHDC_V5
-    bool "Experimental reference LHDC V5 decoder (not V2/V3)"
+    bool "Experimental S31 LHDC V5 decoder (not V2/V3)"
     depends on CHIME_BT_VENDOR_CODECS
     default y
     help
         Adds a seventh sink SEP. 44.1/48k stereo PCM16, 256..500 kbps,
         V5 version 1, 5ms. No lossless, metadata, AR or low-latency mode.
-        Pinned WillyBilly06 native port and portable source snapshot.
+        Pinned S31 source; known PCM16 level regression against existing
+          independent encoder fixtures (see migration document).
         NOT a licensed/certified LHDC product; hardware validation required.
         Disable this option for a six-codec build without LHDC.
 endmenu

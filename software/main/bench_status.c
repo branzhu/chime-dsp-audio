@@ -41,7 +41,7 @@ bool bench_status_json(const bench_status_t *s,char *out,size_t capacity)
         s->station_connected?"true":"false",s->bridge_connected?"true":"false",s->dsp_default_ready?"true":"false",
         s->requests,s->last_result,s->remaining_seconds,
         s->amplifiers_enabled?"true":"false",s->sound_attempted?"true":"false",s->sound_result,(unsigned)s->sound_failed_reg,s->sound_completed_command,s->output_mode,s->output_pending,s->output_result,s->dsp_external?"true":"false",s->tuning_armed,s->tuning_pending,s->tuning_result,
-        s->selected_source==2?"bluetooth":"usb",s->rendering_source==2?"bluetooth":s->rendering_source==1?"usb":"none",
+        s->selected_source==3?"mix":s->selected_source==3?"mix":s->selected_source==2?"bluetooth":"usb",s->rendering_source==3?"mix":s->rendering_source==3?"mix":s->rendering_source==2?"bluetooth":s->rendering_source==1?"usb":"none",
         s->source_stopped?"true":"false",s->bt_available?"true":"false",s->bt_connected?"true":"false",s->bt_playing?"true":"false",
         s->bt_codec==7?"LHDC V5":s->bt_codec==6?"LDAC":s->bt_codec==5?"Opus":s->bt_codec==4?"aptX HD":s->bt_codec==3?"aptX":s->bt_codec==2?"AAC":s->bt_codec==1?"SBC":"none",s->bt_rate,s->bt_error,s->bt_queued,s->bt_drift_ppm,s->bt_overflows,s->bt_underruns,s->bt_stream_state,s->bt_rebuffer_events,s->bt_rebuffer_resumes,s->bt_rebuffer_wait_ms);
     if(length<0 || (size_t)length>=capacity) {out[0]=0;return false;}

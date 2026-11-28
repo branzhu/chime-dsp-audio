@@ -41,22 +41,25 @@ static void simulate(unsigned rate,int ppm,unsigned profile)
         }
         size_t count=q.count,head=q.head;uint32_t phase=q.phase;
         bool was_primed=q.primed;
-        bool ready=chime_bt_pcm_render(&q,out,128,now);
+        /* Long runs stress queue/clock policy; periodically execute the actual
+         * FIR too, without spending billions of MACs on a constant signal. */
+        bool numerical=(i%1024U)==0;chime_bt_src_job_t job;
+        bool ready=numerical?chime_bt_pcm_render(&q,out,128,now):chime_bt_pcm_prepare(&q,&job,128,now);
         if(!ready){
             if(was_primed){if(!run)++events;++gaps;++run;if(run>max_run)max_run=run;}
             else ++prefill;
             assert(q.count==count&&q.head==head&&q.phase==phase);
-            for(unsigned k=0;k<sizeof(out);++k)assert(!out[k]);
+            if(numerical)for(unsigned k=0;k<sizeof(out);++k)assert(!out[k]);
             if(was_primed)assert(q.needed>count);
             else assert(count<q.target_frames);
         }else{
-            uint32_t base=(uint32_t)((uint64_t)rate*65536U/48000U);
-            uint32_t step=(uint32_t)((int64_t)base*(1000000+q.ppm)/1000000);
-            unsigned consumed=(phase+128U*step)>>16;
-            assert(q.phase==((phase+128U*step)&65535U));
+            uint64_t base=((uint64_t)rate<<32)/48000U;
+            uint64_t step=base*(uint64_t)(1000000+q.ppm)/1000000U;
+            unsigned consumed=(unsigned)((phase+128U*step)>>32);
+            assert(q.phase==(uint32_t)(phase+128U*step));
             assert(q.count==count-consumed&&q.head==(head+consumed)%CHIME_BT_QUEUE_FRAMES);
             run=0;
-            for(unsigned k=0;k<sizeof(out);k+=4)assert(!memcmp(out+k,pcm,4));
+            if(numerical)for(unsigned k=0;k<sizeof(out);k+=4)assert(!memcmp(out+k,pcm,4));
         }
         if(now>600000000ULL&&now<650000000ULL&&q.target_ms<=60U)reached_low_latency=true;
         if(i==iterations-22500U)gaps_before_final_minute=gaps;

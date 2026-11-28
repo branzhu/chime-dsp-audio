@@ -27,6 +27,7 @@ void chime_indicator_set_standby(bool active){standby_led=active;}
 bool chime_bluetooth_connected(void){return bt_connected;}
 esp_err_t chime_bluetooth_adjust_volume(int steps){assert(!depth);bt_steps+=steps;return ESP_OK;}
 void chime_bluetooth_volume_notify(void){assert(!depth);}
+void chime_usb_hid_poll(void){assert(!depth);}
 esp_err_t chime_usb_adjust_volume(int steps){assert(!depth);usb_steps+=steps;return ESP_OK;}
 int64_t esp_timer_get_time(void){return clock_us;}
 static void state(unsigned ab){levels[42]=(ab&2U)!=0;levels[40]=(ab&1U)!=0;assert(handlers[42]);handlers[42](NULL);}
@@ -55,8 +56,8 @@ void vTaskDelay(uint32_t ticks)
     case 13: clock_us=1720000;break;
     case 14: clock_us=3220000;break;
     case 15: assert(!chime_controls_standby()&&!standby_led&&chime_controls_muted());bt_connected=true;turn();clock_us=3225000;break;
-    case 16: assert(!bt_steps);turn();clock_us=3230000;break; /* queued old-source step discarded */
-    case 17: assert(bt_steps==2*(int)direction);atomic_store(&quitting,true);break;
+    case 16: assert(!bt_steps&&usb_steps==3*direction);turn();clock_us=3230000;break; /* queued old-source step discarded */
+    case 17: assert(!bt_steps&&usb_steps==4*direction);atomic_store(&quitting,true);break;
     default: assert(0);
     }
 }
@@ -76,6 +77,6 @@ int main(void)
     if(setjmp(finished)==0)task(NULL);
     assert(!atomic_load(&running));chime_controls_stop();chime_controls_stop();
     assert(!handlers[42]&&!handlers[40]&&!chime_controls_blocked()&&!standby_led&&installed==3&&disabled==4&&removes==5);
-    puts("PASS production GPIO/ISR/task startup rollback, reversal config, source-relative steps, mute/standby/wake and task teardown");
+    puts("PASS production GPIO/ISR/task startup rollback, reversal config, PC-only HID steps, mute/standby/wake and task teardown");
     return 0;
 }
